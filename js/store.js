@@ -78,7 +78,13 @@ class MockStore {
     this._login({ uid: "me", username: u.toLowerCase(), email: email || null, name: u });
   }
   async signOut() { this._user = null; this._authCbs.forEach(cb => cb(null)); }
-  async updateProfile({ name }) { if (this._user) { this._user.name = name; this._authCbs.forEach(cb => cb(this._user)); } }
+  async updateProfile({ name, email }) {
+    if (!this._user) return;
+    if (name !== undefined) this._user.name = name;
+    if (email !== undefined) this._user.email = email || null;
+    this._authCbs.forEach(cb => cb(this._user));
+  }
+  async changePassword() { /* demo: no-op */ }
 
   /* friends (demo: adding a friend just adds them instantly) */
   onFriendRequests(cb) { cb([]); return () => {}; }
@@ -270,9 +276,17 @@ class FirebaseStore {
       { username: uname, name: uname, email: realEmail || null, createdAt: this._fs.serverTimestamp() });
   }
   async signOut() { await this._auth.signOut(this.auth); }
-  async updateProfile({ name }) {
-    await this._fs.updateDoc(this._fs.doc(this.db, "users", this._user.uid), { name });
-    this._user.name = name; this._authCbs.forEach(cb => cb(this._user));
+  async updateProfile({ name, email }) {
+    const patch = {};
+    if (name !== undefined) patch.name = name;
+    if (email !== undefined) patch.email = email || null;
+    if (Object.keys(patch).length) await this._fs.updateDoc(this._fs.doc(this.db, "users", this._user.uid), patch);
+    if (name !== undefined) this._user.name = name;
+    if (email !== undefined) this._user.email = email || null;
+    this._authCbs.forEach(cb => cb(this._user));
+  }
+  async changePassword(newPass) {
+    await this._auth.updatePassword(this.auth.currentUser, newPass);
   }
 
   /* ---------------- friends ---------------- */

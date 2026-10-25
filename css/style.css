@@ -140,6 +140,32 @@ html, body {
 .friend-sub { font-size: 11px; color: #8a8f97; }
 .friend-mutual { font-size: 11px; color: #8a8f97; margin-right: 2px; white-space: nowrap; }
 
+/* settings panel */
+.settings-card { width: 430px; }
+.settings-scroll { max-height: 60vh; overflow-y: auto; padding-right: 6px; }
+.opt { font-weight: 400; color: #9aa0a8; }
+.toggle { display: flex; align-items: center; gap: 9px; cursor: pointer; font-weight: 400; margin: 10px 0; color: #333; }
+.toggle input { width: 16px; height: 16px; }
+.swatches { display: flex; gap: 8px; flex-wrap: wrap; }
+.swatch {
+  width: 30px; height: 30px; border-radius: 8px; cursor: pointer; position: relative;
+  border: 1px solid rgba(0,0,0,.3);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.5), 0 1px 2px rgba(0,0,0,.25);
+}
+.swatch.sel::after {
+  content: "✓"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 15px; font-weight: 800; text-shadow: 0 1px 2px rgba(0,0,0,.7);
+}
+.segmented { display: inline-flex; border: 1px solid #9a9ea5; border-radius: 8px; overflow: hidden; box-shadow: inset 0 1px 0 rgba(255,255,255,.7); }
+.segmented button {
+  border: none; border-left: 1px solid #b7bbc1; cursor: pointer;
+  background: linear-gradient(#fdfdfd, #e2e4e8);
+  font-family: var(--font); font-size: 12px; font-weight: 700; color: #444; padding: 7px 14px;
+  text-shadow: 0 1px 0 rgba(255,255,255,.8);
+}
+.segmented button:first-child { border-left: none; }
+.segmented button.sel { background: linear-gradient(var(--blue-mid), var(--blue-bot-ok)); color: #fff; text-shadow: 0 -1px 0 rgba(0,0,0,.3); }
+
 /* sidebar / conversation list */
 .sidebar {
   width: 300px; flex: 0 0 300px;
@@ -252,7 +278,7 @@ html, body {
 .bubble {
   position: relative;
   padding: 9px 14px; border-radius: var(--radius-bubble);
-  font-size: 14.5px; line-height: 1.32; word-wrap: break-word;
+  font-size: var(--bubble-size, 14.5px); line-height: 1.32; word-wrap: break-word;
 }
 /* incoming — pale gray gel. The gradient gives a glossy highlight in the top
    18px, then settles to a FLAT --tail colour so body + tail are one shade. */
@@ -265,7 +291,7 @@ html, body {
 /* outgoing — glossy blue gel, same idea */
 .bubble.me {
   --tail: var(--blue-bot-ok);
-  background: linear-gradient(#49a7ff, var(--tail) 18px);
+  background: linear-gradient(var(--blue-top), var(--tail) 18px);
   color: #fff; text-shadow: 0 1px 1px rgba(0,0,0,.22);
   box-shadow: inset 0 1px 0 rgba(255,255,255,.45), 0 1px 1.5px rgba(0,0,0,.24);
 }

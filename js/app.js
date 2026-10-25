@@ -43,6 +43,41 @@ let friendRequests = [], friends = [], friendsOpen = false, friendsBadgeEl = nul
 const calls = new CallManager(store);
 
 /* =====================================================================
+   PREFERENCES (per-device, localStorage)
+   ===================================================================== */
+const ACCENTS = {
+  Blue:     ["#45a5ff", "#1e8bff", "#0a6cff"],
+  Green:    ["#8ee06a", "#49b839", "#2f9c2f"],
+  Purple:   ["#b98cff", "#8a56e0", "#6c38c0"],
+  Orange:   ["#ffbf5c", "#ff8c1a", "#e0720a"],
+  Pink:     ["#ff93c4", "#ff5fa0", "#e03f85"],
+  Graphite: ["#9aa0aa", "#636a74", "#454b54"],
+};
+const WALLS = {
+  Linen: "#c9c5bd", Slate: "#aeb6c2", Sage: "#bcc5b4",
+  Sand: "#d6c9ab", Rose: "#ccb9bd", Graphite: "#a6a6ab",
+};
+const SIZES = { Small: "13px", Medium: "14.5px", Large: "16.5px" };
+
+function prefGet(k, d) { try { const v = localStorage.getItem("lustre." + k); return v === null ? d : v; } catch { return d; } }
+function prefSet(k, v) { try { localStorage.setItem("lustre." + k, v); } catch {} }
+const prefs = {
+  accent: prefGet("accent", "Blue"),
+  wall: prefGet("wall", "Linen"),
+  size: prefGet("size", "Medium"),
+  enter: prefGet("enter", "1") === "1",
+  receipts: prefGet("receipts", "1") === "1",
+};
+function applyPrefs() {
+  const r = document.documentElement.style;
+  const a = ACCENTS[prefs.accent] || ACCENTS.Blue;
+  r.setProperty("--blue-top", a[0]); r.setProperty("--blue-mid", a[1]); r.setProperty("--blue-bot-ok", a[2]);
+  r.setProperty("--linen", WALLS[prefs.wall] || WALLS.Linen);
+  r.setProperty("--bubble-size", SIZES[prefs.size] || SIZES.Medium);
+}
+applyPrefs();
+
+/* =====================================================================
    BOOT
    ===================================================================== */
 await store.init();
@@ -138,7 +173,7 @@ function renderApp(user) {
     onclick: () => $("#newChatOverlay").classList.add("show") });
   friendsBadgeEl = el("span", { class: "reqbadge hidden" });
   const friendsBtn = el("button", { class: "btn", onclick: openFriends }, ["Friends", friendsBadgeEl]);
-  const settingsBtn = el("button", { class: "btn", text: "Settings", onclick: openAccount });
+  const settingsBtn = el("button", { class: "btn", text: "Settings", onclick: openSettings });
   const sidebar = el("div", { class: "sidebar pinstripe" }, [
     el("div", { class: "brand" }, [
       el("span", { class: "spark" }),
@@ -311,7 +346,9 @@ function openConv(id) {
     ta.value = ""; autoGrow(ta); store.setTyping(id, false);
   }
   ta.addEventListener("keydown", e => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendText(); }
+    if (e.key !== "Enter") return;
+    const send = prefs.enter ? !e.shiftKey : (e.metaKey || e.ctrlKey);
+    if (send) { e.preventDefault(); sendText(); }
   });
   let typingTimer;
   function onType() {
@@ -364,7 +401,7 @@ function paintMessages(container, list, conv, readInfo = {}) {
     container.append(msgNode(m, conv, sorted[i - 1]));
   });
   // read receipt (DMs only) — read if they're here now or last saw us after this message
-  if (conv.type === "dm") {
+  if (conv.type === "dm" && prefs.receipts) {
     const lastMine = [...sorted].reverse().find(m => m.mine);
     if (lastMine) {
       const read = !!readInfo.otherViewing || (readInfo.readTs || 0) >= lastMine.ts;
@@ -510,11 +547,30 @@ function wireChrome() {
     } catch (e) { $("#newChatErr").textContent = e.message || String(e); }
   };
 
-  // account modal
-  $("#accountSignout").onclick = () => { $("#accountOverlay").classList.remove("show"); store.signOut(); };
-  $("#accountSave").onclick = async () => {
-    try { await store.updateProfile({ name: $("#accountName").value.trim() }); $("#accountOverlay").classList.remove("show"); }
-    catch (e) { $("#accountErr").textContent = e.message || String(e); }
+  // settings modal
+  $("#setSignout").onclick = () => { $("#settingsOverlay").classList.remove("show"); store.signOut(); };
+  $("#setSave").onclick = async () => {
+    const errEl = $("#setErr");
+    try {
+      await store.updateProfile({ name: $("#setName").value.trim(), email: $("#setEmail").value.trim() });
+      errEl.textContent = "Saved."; errEl.style.color = "#2f9c16";
+      setTimeout(() => $("#settingsOverlay").classList.remove("show"), 450);
+    } catch (e) { errEl.textContent = e.message || String(e); errEl.style.color = ""; }
+  };
+  $("#setChangePw").onclick = () => $("#pwArea").classList.toggle("hidden");
+  $("#pwSave").onclick = async () => {
+    const pw = $("#pwNew").value, errEl = $("#setErr");
+    if (pw.length < 6) { errEl.textContent = "Password must be at least 6 characters."; errEl.style.color = ""; return; }
+    try {
+      await store.changePassword(pw);
+      errEl.textContent = "Password updated."; errEl.style.color = "#2f9c16";
+      $("#pwNew").value = ""; $("#pwArea").classList.add("hidden");
+    } catch (e) {
+      errEl.textContent = (e.code || "").includes("recent-login")
+        ? "Please sign out and back in, then change your password."
+        : friendlyAuthError(e);
+      errEl.style.color = "";
+    }
   };
   // friends modal
   const addFriend = async () => {
@@ -530,7 +586,7 @@ function wireChrome() {
   $("#friendAdd").addEventListener("keydown", e => e.key === "Enter" && addFriend());
   $("#friendsClose").onclick = () => { $("#friendsOverlay").classList.remove("show"); friendsOpen = false; };
 
-  [$("#newChatOverlay"), $("#accountOverlay"), $("#friendsOverlay")].forEach(o =>
+  [$("#newChatOverlay"), $("#settingsOverlay"), $("#friendsOverlay")].forEach(o =>
     o.addEventListener("click", e => { if (e.target === o) { o.classList.remove("show"); friendsOpen = false; } }));
 }
 
@@ -606,16 +662,49 @@ async function messageFriend(f) {
   try { const id = await store.createConversation({ type: "dm", handles: [f.username] }); setTimeout(() => openConv(id), 150); }
   catch (e) { alert(e.message || "Couldn’t start that chat."); }
 }
-function openAccount() {
+function buildSwatches(container, map, current, kind) {
+  container.innerHTML = "";
+  for (const [name, val] of Object.entries(map)) {
+    const bg = kind === "accent" ? `linear-gradient(${val[0]}, ${val[2]})` : val;
+    const sw = el("div", { class: "swatch" + (name === current ? " sel" : ""), title: name, style: `background:${bg}` });
+    sw.onclick = () => {
+      if (kind === "accent") { prefs.accent = name; prefSet("accent", name); }
+      else { prefs.wall = name; prefSet("wall", name); }
+      applyPrefs();
+      container.querySelectorAll(".swatch").forEach(s => s.classList.remove("sel"));
+      sw.classList.add("sel");
+    };
+    container.append(sw);
+  }
+}
+function buildSegmented(container, options, current, onPick) {
+  container.innerHTML = "";
+  for (const opt of options) {
+    const b = el("button", { text: opt, class: opt === current ? "sel" : "" });
+    b.onclick = () => { container.querySelectorAll("button").forEach(x => x.classList.remove("sel")); b.classList.add("sel"); onPick(opt); };
+    container.append(b);
+  }
+}
+function openSettings() {
   const u = store.me();
-  $("#accountWho").textContent = (u.username ? "@" + u.username : "Demo user") + (u.email ? "  ·  " + u.email : "");
-  $("#accountName").value = u.name || "";
-  const snd = $("#accountSound");
-  snd.checked = sfx.soundEnabled();
+  $("#settingsWho").textContent = u.username ? "@" + u.username : "Demo user";
+  $("#setName").value = u.name || "";
+  $("#setEmail").value = u.email || "";
+  buildSwatches($("#setAccent"), ACCENTS, prefs.accent, "accent");
+  buildSwatches($("#setWall"), WALLS, prefs.wall, "wall");
+  buildSegmented($("#setSize"), ["Small", "Medium", "Large"], prefs.size, v => { prefs.size = v; prefSet("size", v); applyPrefs(); });
+  buildSegmented($("#setPack"), ["MSN", "Classic"], sfx.getPack() === "classic" ? "Classic" : "MSN",
+    v => sfx.setPack(v === "Classic" ? "classic" : "msn"));
+  const enter = $("#setEnter"); enter.checked = prefs.enter;
+  enter.onchange = () => { prefs.enter = enter.checked; prefSet("enter", enter.checked ? "1" : "0"); };
+  const rec = $("#setReceipts"); rec.checked = prefs.receipts;
+  rec.onchange = () => { prefs.receipts = rec.checked; prefSet("receipts", rec.checked ? "1" : "0"); if (activeId) openConv(activeId); };
+  const snd = $("#setSound"); snd.checked = sfx.soundEnabled();
   snd.onchange = () => sfx.setSoundEnabled(snd.checked);
-  $("#accountErr").textContent = "";
-  $("#accountMode").textContent = DEMO ? "Demo mode — changes are local only." : "Signed in with Firebase.";
-  $("#accountOverlay").classList.add("show");
+  $("#pwArea").classList.add("hidden"); $("#pwNew").value = "";
+  $("#setErr").textContent = ""; $("#setErr").style.color = "";
+  $("#setMode").textContent = DEMO ? "Demo mode — profile changes are local only." : "Signed in with Firebase.";
+  $("#settingsOverlay").classList.add("show");
 }
 
 /* =====================================================================

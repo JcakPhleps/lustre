@@ -51,22 +51,46 @@
     </div>
   </div>
 
-  <!-- ============ ACCOUNT MODAL ============ -->
-  <div class="overlay" id="accountOverlay">
-    <div class="card">
-      <h1 style="font-size:20px">Account</h1>
-      <div class="tag" id="accountWho">—</div>
-      <label>Display name</label>
-      <input class="input" id="accountName" />
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:14px;font-weight:400">
-        <input type="checkbox" id="accountSound" /> Message sounds
-      </label>
-      <div class="err" id="accountErr"></div>
-      <div class="row">
-        <button class="btn" id="accountSignout">Sign out</button>
-        <button class="btn blue" id="accountSave">Save</button>
+  <!-- ============ SETTINGS MODAL ============ -->
+  <div class="overlay" id="settingsOverlay">
+    <div class="card settings-card">
+      <h1 style="font-size:20px">Settings</h1>
+      <div class="settings-scroll">
+        <div class="sectionhead">Profile</div>
+        <div class="tag" id="settingsWho" style="text-align:left;margin:0 0 8px">—</div>
+        <label>Display name</label>
+        <input class="input" id="setName" />
+        <label>Recovery email <span class="opt">(optional)</span></label>
+        <input class="input" id="setEmail" type="email" placeholder="you@email.com" autocapitalize="none" spellcheck="false" />
+
+        <div class="sectionhead">Appearance</div>
+        <label>Accent color</label>
+        <div class="swatches" id="setAccent"></div>
+        <label>Chat wallpaper</label>
+        <div class="swatches" id="setWall"></div>
+        <label>Text size</label>
+        <div class="segmented" id="setSize"></div>
+
+        <div class="sectionhead">Chat</div>
+        <label class="toggle"><input type="checkbox" id="setEnter"> <span>Press Enter to send</span></label>
+        <label class="toggle"><input type="checkbox" id="setReceipts"> <span>Show read receipts</span></label>
+        <label class="toggle"><input type="checkbox" id="setSound"> <span>Message sounds</span></label>
+        <label>Sound pack</label>
+        <div class="segmented" id="setPack"></div>
+
+        <div class="sectionhead">Account</div>
+        <button class="btn" id="setChangePw" style="width:100%">Change password…</button>
+        <div id="pwArea" class="hidden" style="margin-top:8px">
+          <input class="input" id="pwNew" type="password" placeholder="New password (6+ characters)" />
+          <button class="btn blue" id="pwSave" style="width:100%;margin-top:6px">Update password</button>
+        </div>
       </div>
-      <div class="muted" id="accountMode"></div>
+      <div class="err" id="setErr"></div>
+      <div class="row">
+        <button class="btn red" id="setSignout">Sign out</button>
+        <button class="btn blue" id="setSave">Save</button>
+      </div>
+      <div class="muted" id="setMode"></div>
     </div>
   </div>
 
