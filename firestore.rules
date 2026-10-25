@@ -17,9 +17,11 @@ service cloud.firestore {
         allow create: if signedIn() && request.auth.uid == fromUid;
         allow delete: if signedIn() && (request.auth.uid == uid || request.auth.uid == fromUid);
       }
-      // friends: you manage your own list; a new friend may add themselves on accept
+      // friends: you manage your own list; a new friend may add themselves on accept.
+      // friends may read each other's friend lists (for mutual/friend-of-friend suggestions).
       match /friends/{fid} {
-        allow read:  if signedIn() && request.auth.uid == uid;
+        allow read:  if signedIn() && (request.auth.uid == uid
+                       || exists(/databases/$(database)/documents/users/$(uid)/friends/$(request.auth.uid)));
         allow write: if signedIn() && (request.auth.uid == uid || request.auth.uid == fid);
       }
     }

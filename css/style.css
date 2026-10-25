@@ -138,6 +138,7 @@ html, body {
 .friend-name { flex: 1; min-width: 0; }
 .friend-name > div:first-child { font-weight: 700; font-size: 13px; color: #2a2a2c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .friend-sub { font-size: 11px; color: #8a8f97; }
+.friend-mutual { font-size: 11px; color: #8a8f97; margin-right: 2px; white-space: nowrap; }
 
 /* sidebar / conversation list */
 .sidebar {

@@ -539,7 +539,30 @@ function openFriends() {
   friendsOpen = true;
   $("#friendErr").textContent = "";
   renderFriendLists();
+  loadSuggestions();
   $("#friendsOverlay").classList.add("show");
+}
+async function loadSuggestions() {
+  const box = $("#friendSuggest");
+  box.innerHTML = ""; box.append(el("div", { class: "muted", text: "Looking…" }));
+  let list = [];
+  try { list = await store.suggestFriends(); } catch { list = []; }
+  const friendIds = new Set(friends.map(f => f.uid));
+  list = list.filter(s => !friendIds.has(s.uid));
+  box.innerHTML = "";
+  if (!list.length) { box.append(el("div", { class: "muted", text: "No suggestions yet — add a few friends first." })); return; }
+  for (const s of list) {
+    const addBtn = el("button", { class: "btn blue", text: "Add" });
+    addBtn.onclick = async () => {
+      addBtn.disabled = true; addBtn.textContent = "Sent";
+      try { await store.sendFriendRequest(s.username); }
+      catch (e) { addBtn.disabled = false; addBtn.textContent = "Add"; $("#friendErr").textContent = e.message; $("#friendErr").style.color = ""; }
+    };
+    box.append(friendRow(s, [
+      el("span", { class: "friend-mutual", text: s.mutuals + " mutual" + (s.mutuals === 1 ? "" : "s") }),
+      addBtn,
+    ]));
+  }
 }
 function updateFriendsBadge() {
   if (!friendsBadgeEl) return;

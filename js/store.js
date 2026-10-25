@@ -91,6 +91,7 @@ class MockStore {
   async acceptFriend() {}
   async declineFriend() {}
   async removeFriend(id) { this._friends = (this._friends || []).filter(f => f.uid !== id); this._friendsCb?.(this._friends || []); }
+  async suggestFriends() { return []; }
 
   _login(user) {
     this._user = user;
@@ -316,6 +317,28 @@ class FirebaseStore {
   async removeFriend(uid) {
     await this._fs.deleteDoc(this._fs.doc(this.db, "users", this._user.uid, "friends", uid));
     try { await this._fs.deleteDoc(this._fs.doc(this.db, "users", uid, "friends", this._user.uid)); } catch {}
+  }
+
+  // friends-of-friends, ranked by how many friends you share
+  async suggestFriends(limit = 8) {
+    const myUid = this._user.uid;
+    const mine = await this._fs.getDocs(this._fs.collection(this.db, "users", myUid, "friends"));
+    const myFriendIds = mine.docs.map(d => d.id);
+    const exclude = new Set([myUid, ...myFriendIds]);
+    const counts = new Map();
+    for (const fid of myFriendIds) {
+      try {
+        const fof = await this._fs.getDocs(this._fs.collection(this.db, "users", fid, "friends"));
+        fof.forEach(d => {
+          if (exclude.has(d.id)) return;
+          const v = d.data();
+          const cur = counts.get(d.id) || { uid: d.id, username: v.username, name: v.name, mutuals: 0 };
+          cur.mutuals++;
+          counts.set(d.id, cur);
+        });
+      } catch {}
+    }
+    return [...counts.values()].sort((a, b) => b.mutuals - a.mutuals).slice(0, limit);
   }
 
   onConversations(cb) {
