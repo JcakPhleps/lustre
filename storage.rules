@@ -1,0 +1,17 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // image attachments and voice messages: signed-in users upload under
+    // their own uid; anyone signed in can read (links are shared in chats).
+    match /uploads/{uid}/{file=**} {
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == uid
+                   && request.resource.size < 15 * 1024 * 1024;
+    }
+    match /voice/{uid}/{file=**} {
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == uid
+                   && request.resource.size < 15 * 1024 * 1024;
+    }
+  }
+}

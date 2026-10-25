@@ -1,0 +1,52 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function isMember(conv) { return signedIn() && request.auth.uid in conv.data.memberIds; }
+
+    // user profiles — anyone signed in can read (to resolve emails → users),
+    // but only the owner can write their own profile.
+    match /users/{uid} {
+      allow read: if signedIn();
+      allow write: if signedIn() && request.auth.uid == uid;
+
+      // friend requests: requester drops one in the target's inbox; target reads/declines
+      match /requests/{fromUid} {
+        allow read:   if signedIn() && request.auth.uid == uid;
+        allow create: if signedIn() && request.auth.uid == fromUid;
+        allow delete: if signedIn() && (request.auth.uid == uid || request.auth.uid == fromUid);
+      }
+      // friends: you manage your own list; a new friend may add themselves on accept
+      match /friends/{fid} {
+        allow read:  if signedIn() && request.auth.uid == uid;
+        allow write: if signedIn() && (request.auth.uid == uid || request.auth.uid == fid);
+      }
+    }
+
+    match /conversations/{cid} {
+      allow read:   if isMember(resource);
+      allow create: if signedIn() && request.auth.uid in request.resource.data.memberIds;
+      allow update: if isMember(resource);
+
+      match /messages/{mid} {
+        allow read:   if isMember(get(/databases/$(database)/documents/conversations/$(cid)));
+        allow create: if isMember(get(/databases/$(database)/documents/conversations/$(cid)))
+                      && request.resource.data.from.uid == request.auth.uid;
+        allow update: if isMember(get(/databases/$(database)/documents/conversations/$(cid))); // read receipts
+      }
+
+      // presence ("I'm here" / typing) and call signalling: members only
+      match /presence/{uid} {
+        allow read:  if isMember(get(/databases/$(database)/documents/conversations/$(cid)));
+        allow write: if signedIn() && request.auth.uid == uid;
+      }
+      match /signals/{sid} {
+        allow read, create, delete: if isMember(get(/databases/$(database)/documents/conversations/$(cid)));
+      }
+      match /calls/{doc} {
+        allow read, write: if isMember(get(/databases/$(database)/documents/conversations/$(cid)));
+      }
+    }
+  }
+}
