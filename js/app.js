@@ -276,6 +276,7 @@ function openConv(id) {
 
   /* ---- messages ---- */
   const messages = el("div", { class: "messages linen" });
+  const receiptEl = el("div", { class: "receipt hidden" });   // persistent; not rebuilt with bubbles
 
   /* ---- composer ---- */
   const ta = el("textarea", { rows: 1, placeholder: "Message", oninput: onType });
@@ -301,10 +302,25 @@ function openConv(id) {
   const readTs = () => conv.members.reduce((mx, m) => Math.max(mx, lastPres.reads?.[m.uid] || 0), 0);
   const otherViewing = () => (lastPres.viewing || []).length > 0;
 
-  function render() {
-    paintMessages(messages, lastMsgs, conv, { readTs: readTs(), otherViewing: otherViewing() });
+  // rebuild the message bubbles (only when the message list actually changes)
+  function renderMessages() {
+    paintMessages(messages, lastMsgs, conv);
+    messages.append(receiptEl);                // keep receipt below the bubbles
+    paintTyping(messages, conv, lastPres);     // typing bubble stays last
+    updateReceipt();
+  }
+  // presence changed (typing / here / read) — update WITHOUT touching the bubbles
+  function renderPresence() {
     paintTyping(messages, conv, lastPres);
     updateStatus(status, conv, lastPres);
+    updateReceipt();
+  }
+  function updateReceipt() {
+    const lastMine = [...lastMsgs].reverse().find(m => m.mine);
+    if (conv.type !== "dm" || !prefs.receipts || !lastMine) { receiptEl.classList.add("hidden"); return; }
+    const read = otherViewing() || readTs() >= lastMine.ts;
+    receiptEl.textContent = read ? "Read " + fmtTime(lastMine.ts) : "Delivered";
+    receiptEl.classList.remove("hidden");
   }
   function checkReadSound() {
     const lastMine = [...lastMsgs].reverse().find(m => m.mine);
@@ -314,21 +330,18 @@ function openConv(id) {
   }
 
   msgUnsub = store.onMessages(id, list => {
+    const added = !seenIds ? [] : list.filter(m => !seenIds.has(m.id));
     lastMsgs = list;
-    render();
+    renderMessages();
     store.setViewing(id, true);   // refresh our "seen" time so the sender gets a Read
-    if (seenIds === null) { seenIds = new Set(list.map(m => m.id)); }
-    else {
-      let gotIncoming = false;
-      for (const m of list) if (!seenIds.has(m.id)) { seenIds.add(m.id); if (!m.mine) gotIncoming = true; }
-      if (gotIncoming) sfx.playReceive();
-    }
+    if (seenIds === null) seenIds = new Set(list.map(m => m.id));
+    else { for (const m of added) seenIds.add(m.id); if (added.some(m => !m.mine)) sfx.playReceive(); }
     checkReadSound();
   });
 
   presUnsub = store.onConvPresence(id, pres => {
     lastPres = pres;
-    render();
+    renderPresence();
     const viewing = otherViewing(), typing = (pres.typing || []).length > 0;
     if (presInit) {
       if (viewing && !prevViewing) sfx.playHere();
@@ -389,10 +402,10 @@ function openConv(id) {
   scrollBottom(messages);
 }
 
-/* paint all messages with day-stamps, grouping, avatars, receipts */
-function paintMessages(container, list, conv, readInfo = {}) {
+/* paint message bubbles with day-stamps, grouping, avatars (receipt is separate) */
+function paintMessages(container, list, conv) {
   const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 80;
-  container.querySelectorAll(".msg,.daystamp,.typingrow,.receipt").forEach(n => n.remove());
+  container.querySelectorAll(".msg,.daystamp,.typingrow").forEach(n => n.remove());
   let lastDay = null;
   const sorted = [...list].sort((a, b) => a.ts - b.ts);
   sorted.forEach((m, i) => {
@@ -400,14 +413,6 @@ function paintMessages(container, list, conv, readInfo = {}) {
     if (day !== lastDay) { container.append(el("div", { class: "daystamp", text: day })); lastDay = day; }
     container.append(msgNode(m, conv, sorted[i - 1]));
   });
-  // read receipt (DMs only) — read if they're here now or last saw us after this message
-  if (conv.type === "dm" && prefs.receipts) {
-    const lastMine = [...sorted].reverse().find(m => m.mine);
-    if (lastMine) {
-      const read = !!readInfo.otherViewing || (readInfo.readTs || 0) >= lastMine.ts;
-      container.append(el("div", { class: "receipt", text: read ? "Read " + fmtTime(lastMine.ts) : "Delivered" }));
-    }
-  }
   if (atBottom) scrollBottom(container);
 }
 
