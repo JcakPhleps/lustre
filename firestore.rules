@@ -26,6 +26,12 @@ service cloud.firestore {
       }
     }
 
+    // global presence — powers the "x active" counter
+    match /presence_global/{uid} {
+      allow read:  if signedIn();
+      allow write: if signedIn() && request.auth.uid == uid;
+    }
+
     match /conversations/{cid} {
       allow read:   if isMember(resource);
       allow create: if signedIn() && request.auth.uid in request.resource.data.memberIds;

@@ -31,6 +31,46 @@ const fmtDay = ts => {
   return d.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" });
 };
 
+/* ---------- avatars & profile pictures ---------- */
+const initials = (n = "?") => n.trim().split(/\s+/).map(w => w[0]).slice(0, 2).join("").toUpperCase() || "?";
+const PFP_COLORS = {
+  blue:   "linear-gradient(#5bb0ff,#0a6cff)",  green:  "linear-gradient(#8ee06a,#2f9c2f)",
+  purple: "linear-gradient(#b98cff,#6c38c0)",  orange: "linear-gradient(#ffbf5c,#e0720a)",
+  pink:   "linear-gradient(#ff93c4,#e03f85)",  teal:   "linear-gradient(#6ee0d0,#1aa697)",
+  red:    "linear-gradient(#ff8a8a,#d62222)",  gray:   "linear-gradient(#b7c0cc,#8c97a6)",
+};
+const PRESETS = [
+  "p:😎:blue", "p:🐱:orange", "p:🎮:purple", "p:🌮:red", "p:🚀:teal", "p:🎸:pink",
+  "p:🌈:green", "p:👾:purple", "p:🍕:orange", "p:⚡:blue", "p:🦊:orange", "p:🐸:green",
+];
+// person: { uid?, name?, username?, photo? }; opts: { cls, online }
+function avatarEl(person = {}, opts = {}) {
+  const av = el("div", { class: "avatar" + (opts.cls ? " " + opts.cls : "") + (opts.online ? " online" : "") });
+  const dot = el("span", { class: "dot" });
+  applyAvatar(av, person, dot);
+  if (!person.photo && person.uid && person.uid !== "me" && store.getProfile) {
+    Promise.resolve(store.getProfile(person.uid)).then(p => { if (p && p.photo) applyAvatar(av, { ...person, photo: p.photo }, dot); });
+  }
+  return av;
+}
+function applyAvatar(av, person, dot) {
+  const photo = person.photo;
+  av.style.background = ""; av.style.backgroundImage = ""; av.textContent = "";
+  av.classList.remove("has-img", "emoji");
+  if (photo && photo.startsWith("data:")) {
+    av.classList.add("has-img");
+    av.style.backgroundImage = `url("${photo}")`;
+  } else if (photo && photo.startsWith("p:")) {
+    const [, emoji, color] = photo.split(":");
+    av.classList.add("emoji");
+    av.style.background = PFP_COLORS[color] || PFP_COLORS.gray;
+    av.textContent = emoji || "";
+  } else {
+    av.textContent = initials(person.name || person.username || "?");
+  }
+  if (dot) av.append(dot);
+}
+
 /* =====================================================================
    APP STATE
    ===================================================================== */
@@ -40,6 +80,12 @@ let msgUnsub = null, presUnsub = null;
 let callWatchers = new Map();   // conv id -> unsub (incoming-call listeners)
 let convSeen = null;   // conv id -> last seen lastTs (for background receive sounds)
 let friendRequests = [], friends = [], friendsOpen = false, friendsBadgeEl = null, friendSubs = [];
+let settingsPhoto;   // pending pfp in Settings; undefined = unchanged
+function drawPfpPreview() {
+  const u = store.me(); if (!u) return;
+  applyAvatar($("#setPfpPreview"), { name: u.name, username: u.username, photo: settingsPhoto === undefined ? u.photo : settingsPhoto });
+}
+function clearPfpSel() { $("#setPfpPresets").querySelectorAll(".pfp-choice").forEach(x => x.classList.remove("sel")); }
 const calls = new CallManager(store);
 
 /* =====================================================================
@@ -67,7 +113,16 @@ const prefs = {
   size: prefGet("size", "Medium"),
   enter: prefGet("enter", "1") === "1",
   receipts: prefGet("receipts", "1") === "1",
+  notify: prefGet("notify", "0") === "1",
 };
+function notify(title, body, tag) {
+  if (!prefs.notify || typeof Notification === "undefined" || Notification.permission !== "granted") return;
+  try {
+    const n = new Notification(title, { body, tag, renotify: true });
+    n.onclick = () => { window.focus(); n.close(); };
+    setTimeout(() => n.close(), 8000);
+  } catch {}
+}
 function applyPrefs() {
   const r = document.documentElement.style;
   const a = ACCENTS[prefs.accent] || ACCENTS.Blue;
@@ -174,15 +229,19 @@ function renderApp(user) {
   friendsBadgeEl = el("span", { class: "reqbadge hidden" });
   const friendsBtn = el("button", { class: "btn", onclick: openFriends }, ["Friends", friendsBadgeEl]);
   const settingsBtn = el("button", { class: "btn", text: "Settings", onclick: openSettings });
+  const activeCountEl = el("span", { class: "active-count", text: "…" });
   const sidebar = el("div", { class: "sidebar pinstripe" }, [
     el("div", { class: "brand" }, [
       el("span", { class: "spark" }),
       el("span", { class: "wordmark" }, ["Lustre", el("span", { class: "indev", text: "indev" })]),
     ]),
+    el("div", { class: "active-line" }, [el("span", { class: "active-dot" }), activeCountEl]),
     el("div", { class: "sidebar-actions" }, [newChatBtn, friendsBtn, settingsBtn]),
     el("div", { class: "search" }, [search]),
     convList,
   ]);
+  store.startGlobalPresence();
+  store.onActiveCount(n => { activeCountEl.textContent = n + " active"; });
 
   const chat = el("div", { class: "chat" }, [
     el("div", { class: "center", html: "<div style='color:#6c6660;text-shadow:0 1px 0 rgba(255,255,255,.5)'>Pick a conversation, or start a new one.</div>" }),
@@ -200,7 +259,10 @@ function renderApp(user) {
       for (const c of list) {
         const prev = convSeen.get(c.id);
         if (prev !== undefined && c.lastTs > prev && c.id !== activeId
-            && c.lastFrom && c.lastFrom !== store.me().uid) sfx.playReceive();
+            && c.lastFrom && c.lastFrom !== store.me().uid) {
+          sfx.playReceive();
+          if (document.hidden) notify(c.name, c.lastText || "New message", "msg-" + c.id);
+        }
       }
     } else convSeen = new Map();
     for (const c of list) convSeen.set(c.id, c.lastTs);
@@ -227,8 +289,7 @@ function paintConvList(filter = "") {
   convList.innerHTML = "";
   for (const c of convs) {
     if (filter && !c.name.toLowerCase().includes(filter)) continue;
-    const av = el("div", { class: "avatar" + (c.online ? " online" : ""), text: c.avatarText },
-      [el("span", { class: "dot" })]);
+    const av = avatarEl({ uid: c.type === "dm" ? c.members[0]?.uid : null, name: c.name }, { online: c.online });
     const row = el("div", { class: "conv" + (c.id === activeId ? " active" : ""), onclick: () => openConv(c.id) }, [
       av,
       el("div", { class: "conv-body" }, [
@@ -268,7 +329,7 @@ function openConv(id) {
   const head = el("div", { class: "chat-head metal" }, [
     el("button", { class: "btn backbtn", text: "‹ Chats",
       onclick: () => { renderApp._els.body.classList.remove("show-chat"); store.setViewing(id, false); } }),
-    el("div", { class: "avatar sm" + (conv.online ? " online" : ""), text: conv.avatarText }, [el("span", { class: "dot" })]),
+    avatarEl({ uid: conv.type === "dm" ? conv.members[0]?.uid : null, name: conv.name }, { cls: "sm", online: conv.online }),
     el("div", { class: "who" }, [el("div", { class: "name", text: conv.name }), status]),
     el("button", { class: "btn", text: "Call", onclick: () => startCall(conv, false) }),
     el("button", { class: "btn", text: "Video", onclick: () => startCall(conv, true) }),
@@ -282,7 +343,7 @@ function openConv(id) {
   const ta = el("textarea", { rows: 1, placeholder: "Message", oninput: onType });
   const photoBtn = el("button", { class: "btn", text: "Photo", onclick: () => $("#imgInput").click() });
   const voiceBtn = el("button", { class: "btn", text: "Voice", onclick: toggleVoice });
-  const sendBtn = el("button", { class: "btn green", text: "Send", onclick: sendText });
+  const sendBtn = el("button", { class: "btn blue", text: "Send", onclick: sendText });
   const composer = el("div", { class: "composer metal" }, [
     photoBtn,
     el("div", { class: "field" }, [ta]),
@@ -335,7 +396,17 @@ function openConv(id) {
     renderMessages();
     store.setViewing(id, true);   // refresh our "seen" time so the sender gets a Read
     if (seenIds === null) seenIds = new Set(list.map(m => m.id));
-    else { for (const m of added) seenIds.add(m.id); if (added.some(m => !m.mine)) sfx.playReceive(); }
+    else {
+      for (const m of added) seenIds.add(m.id);
+      const incoming = added.filter(m => !m.mine);
+      if (incoming.length) {
+        sfx.playReceive();
+        if (document.hidden) {
+          const m = incoming[incoming.length - 1];
+          notify(conv.name, m.text || (m.image ? "Photo" : m.audio ? "Voice message" : "New message"), "msg-" + id);
+        }
+      }
+    }
     checkReadSound();
   });
 
@@ -436,7 +507,7 @@ function msgNode(m, conv, prev) {
 
   const row = el("div", { class: "msg" + (m.mine ? " mine" : "") });
   if (conv.type === "group" && !m.mine)
-    row.append(el("div", { class: "avatar sm", text: (m.from.name || "?").slice(0, 2).toUpperCase() }));
+    row.append(avatarEl({ uid: m.from.uid, name: m.from.name }, { cls: "sm" }));
   row.append(stack);
   return row;
 }
@@ -490,14 +561,16 @@ calls.onTile((peerId, stream, label) => {
   }
   tile.querySelector("video").srcObject = stream;
   tile.querySelector(".label").textContent = label;
+  if (peerId !== "me") sfx.stopRing();   // remote connected → stop ringing
 });
-calls.onEnd(() => { callStage.classList.remove("show"); callGrid.innerHTML = ""; });
+calls.onEnd(() => { sfx.stopRing(); callStage.classList.remove("show"); callGrid.innerHTML = ""; });
 
 async function startCall(conv, video) {
   callGrid.innerHTML = "";
   callStage.classList.add("show");
+  sfx.startRing();                        // ringback while waiting for an answer
   try { await calls.start(conv, { video }); }
-  catch (e) { alert("Couldn’t start call: " + (e.message || e)); calls.hangup(); }
+  catch (e) { sfx.stopRing(); alert("Couldn’t start call: " + (e.message || e)); calls.hangup(); }
 }
 $("#callHang").onclick = () => calls.hangup();
 $("#callMute").onclick = e => { const muted = calls.toggleMute(); e.currentTarget.classList.toggle("active", muted); e.currentTarget.textContent = muted ? "Unmute" : "Mute"; };
@@ -511,14 +584,18 @@ function onIncomingCall(conv, info) {
   $("#incomingName").textContent = info.fromName || conv.name;
   $("#incomingKind").textContent = info.video ? "Video call" : "Voice call";
   $("#incomingOverlay").classList.add("show");
+  sfx.startRing();
+  notify(info.fromName || conv.name, (info.video ? "Video" : "Voice") + " call…", "call-" + conv.id);
 }
 function onCallCancel(conv) {
   if (incomingInfo && incomingInfo.conv.id === conv.id) {
     incomingInfo = null;
+    sfx.stopRing();
     $("#incomingOverlay").classList.remove("show");
   }
 }
 $("#incomingAccept").onclick = async () => {
+  sfx.stopRing();
   $("#incomingOverlay").classList.remove("show");
   if (!incomingInfo) return;
   const { conv, info } = incomingInfo; incomingInfo = null;
@@ -527,6 +604,7 @@ $("#incomingAccept").onclick = async () => {
   catch (e) { alert("Couldn’t join call: " + (e.message || e)); calls.hangup(); }
 };
 $("#incomingDecline").onclick = () => {
+  sfx.stopRing();
   $("#incomingOverlay").classList.remove("show");
   if (incomingInfo) calls.decline(incomingInfo.conv);
   incomingInfo = null;
@@ -557,11 +635,21 @@ function wireChrome() {
   $("#setSave").onclick = async () => {
     const errEl = $("#setErr");
     try {
-      await store.updateProfile({ name: $("#setName").value.trim(), email: $("#setEmail").value.trim() });
+      await store.updateProfile({
+        name: $("#setName").value.trim(), email: $("#setEmail").value.trim(),
+        ...(settingsPhoto !== undefined ? { photo: settingsPhoto } : {}),
+      });
       errEl.textContent = "Saved."; errEl.style.color = "#2f9c16";
       setTimeout(() => $("#settingsOverlay").classList.remove("show"), 450);
     } catch (e) { errEl.textContent = e.message || String(e); errEl.style.color = ""; }
   };
+  $("#setPfpUpload").onclick = () => $("#pfpInput").click();
+  $("#pfpInput").onchange = async e => {
+    const f = e.target.files[0]; if (!f) return; e.target.value = "";
+    try { settingsPhoto = await store.processAvatar(f); drawPfpPreview(); clearPfpSel(); }
+    catch { $("#setErr").textContent = "Couldn’t load that image."; $("#setErr").style.color = ""; }
+  };
+  $("#setPfpRemove").onclick = () => { settingsPhoto = null; drawPfpPreview(); clearPfpSel(); };
   $("#setChangePw").onclick = () => $("#pwArea").classList.toggle("hidden");
   $("#pwSave").onclick = async () => {
     const pw = $("#pwNew").value, errEl = $("#setErr");
@@ -633,7 +721,7 @@ function updateFriendsBadge() {
 }
 function friendRow(p, actions) {
   return el("div", { class: "friend-row" }, [
-    el("div", { class: "avatar sm", text: (p.name || p.username || "?").slice(0, 2).toUpperCase() }),
+    avatarEl({ uid: p.uid, name: p.name || p.username, photo: p.photo }, { cls: "sm" }),
     el("div", { class: "friend-name" }, [
       el("div", { text: p.name || p.username }),
       el("div", { class: "friend-sub", text: "@" + p.username }),
@@ -693,6 +781,16 @@ function buildSegmented(container, options, current, onPick) {
 function openSettings() {
   const u = store.me();
   $("#settingsWho").textContent = u.username ? "@" + u.username : "Demo user";
+  settingsPhoto = undefined;
+  drawPfpPreview();
+  const presets = $("#setPfpPresets"); presets.innerHTML = "";
+  for (const p of PRESETS) {
+    const [, emoji, color] = p.split(":");
+    const choice = el("div", { class: "avatar sm emoji pfp-choice" });
+    choice.style.background = PFP_COLORS[color]; choice.textContent = emoji;
+    choice.onclick = () => { settingsPhoto = p; drawPfpPreview(); clearPfpSel(); choice.classList.add("sel"); };
+    presets.append(choice);
+  }
   $("#setName").value = u.name || "";
   $("#setEmail").value = u.email || "";
   buildSwatches($("#setAccent"), ACCENTS, prefs.accent, "accent");
@@ -706,6 +804,17 @@ function openSettings() {
   rec.onchange = () => { prefs.receipts = rec.checked; prefSet("receipts", rec.checked ? "1" : "0"); if (activeId) openConv(activeId); };
   const snd = $("#setSound"); snd.checked = sfx.soundEnabled();
   snd.onchange = () => sfx.setSoundEnabled(snd.checked);
+  const ntf = $("#setNotify");
+  ntf.checked = prefs.notify && typeof Notification !== "undefined" && Notification.permission === "granted";
+  ntf.onchange = async () => {
+    if (ntf.checked) {
+      if (typeof Notification === "undefined") { $("#setErr").textContent = "This browser doesn’t support notifications."; $("#setErr").style.color = ""; ntf.checked = false; return; }
+      let perm = Notification.permission;
+      if (perm === "default") perm = await Notification.requestPermission();
+      if (perm !== "granted") { ntf.checked = false; prefs.notify = false; prefSet("notify", "0"); $("#setErr").textContent = "Notifications are blocked in your browser settings."; $("#setErr").style.color = ""; return; }
+    }
+    prefs.notify = ntf.checked; prefSet("notify", ntf.checked ? "1" : "0");
+  };
   $("#pwArea").classList.add("hidden"); $("#pwNew").value = "";
   $("#setErr").textContent = ""; $("#setErr").style.color = "";
   $("#setMode").textContent = DEMO ? "Demo mode — profile changes are local only." : "Signed in with Firebase.";

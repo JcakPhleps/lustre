@@ -58,6 +58,15 @@
       <div class="settings-scroll">
         <div class="sectionhead">Profile</div>
         <div class="tag" id="settingsWho" style="text-align:left;margin:0 0 8px">—</div>
+        <label>Profile picture</label>
+        <div class="pfp-edit">
+          <div class="avatar lg" id="setPfpPreview"></div>
+          <div class="pfp-controls">
+            <button class="btn" id="setPfpUpload">Upload…</button>
+            <button class="btn" id="setPfpRemove">Remove</button>
+          </div>
+        </div>
+        <div class="pfp-presets" id="setPfpPresets"></div>
         <label>Display name</label>
         <input class="input" id="setName" />
         <label>Recovery email <span class="opt">(optional)</span></label>
@@ -75,6 +84,7 @@
         <label class="toggle"><input type="checkbox" id="setEnter"> <span>Press Enter to send</span></label>
         <label class="toggle"><input type="checkbox" id="setReceipts"> <span>Show read receipts</span></label>
         <label class="toggle"><input type="checkbox" id="setSound"> <span>Message sounds</span></label>
+        <label class="toggle"><input type="checkbox" id="setNotify"> <span>Desktop notifications (messages & calls)</span></label>
         <label>Sound pack</label>
         <div class="segmented" id="setPack"></div>
 
@@ -117,8 +127,9 @@
     </div>
   </div>
 
-  <!-- hidden file input for image attachments -->
+  <!-- hidden file inputs -->
   <input type="file" id="imgInput" accept="image/*" class="hidden" />
+  <input type="file" id="pfpInput" accept="image/*" class="hidden" />
 
   <script type="module" src="js/app.js"></script>
 </body>

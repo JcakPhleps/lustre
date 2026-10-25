@@ -84,13 +84,25 @@ html, body {
 /* ---- sidebar brand (the Lustre wordmark) ---- */
 .brand {
   display: flex; align-items: center; justify-content: center; gap: 8px;
-  padding: 16px 10px 12px;
+  padding: 16px 10px 2px;
   font-size: 30px; font-weight: 800; letter-spacing: -.5px;
   color: #4a4e57;
   text-shadow: 0 1px 0 rgba(255,255,255,.9), 0 2px 4px rgba(0,0,0,.12);
+}
+
+/* "x active" counter under the wordmark */
+.active-line {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 2px 0 10px;
   border-bottom: 1px solid rgba(0,0,0,.1);
   box-shadow: 0 1px 0 rgba(255,255,255,.55);
 }
+.active-dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #b6ff7a, #46c923 60%, #2f9c16);
+  box-shadow: 0 0 4px rgba(70,201,35,.75), inset 0 1px 0 rgba(255,255,255,.5);
+}
+.active-count { font-size: 12px; font-weight: 700; color: #6b7178; text-shadow: 0 1px 0 rgba(255,255,255,.6); }
 /* a little glossy gem beside the wordmark */
 .brand .spark {
   width: 20px; height: 20px; border-radius: 6px;
@@ -165,6 +177,19 @@ html, body {
 }
 .segmented button:first-child { border-left: none; }
 .segmented button.sel { background: linear-gradient(var(--blue-mid), var(--blue-bot-ok)); color: #fff; text-shadow: 0 -1px 0 rgba(0,0,0,.3); }
+
+/* profile pictures */
+.avatar.has-img { background-size: cover; background-position: center; }
+.avatar.emoji { font-size: 20px; }
+.avatar.sm.emoji { font-size: 15px; }
+.avatar.lg { width: 64px; height: 64px; flex-basis: 64px; border-radius: 15px; font-size: 26px; }
+.avatar.lg.emoji { font-size: 34px; }
+.pfp-edit { display: flex; align-items: center; gap: 14px; margin-bottom: 8px; }
+.pfp-controls { display: flex; flex-direction: column; gap: 6px; }
+.pfp-controls .btn { padding: 6px 12px; }
+.pfp-presets { display: flex; flex-wrap: wrap; gap: 7px; }
+.pfp-choice { cursor: pointer; }
+.pfp-choice.sel { outline: 3px solid var(--blue-mid); outline-offset: 1px; }
 
 /* sidebar / conversation list */
 .sidebar {

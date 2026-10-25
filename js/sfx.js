@@ -126,3 +126,20 @@ export function playLeft() {
     tone(c, 659.25, t + 0.09, 0.18, 0.09, "sine");  // E5
   } catch {}
 }
+
+/* ---- call ringtone: looping MSN-ish jingle ---- */
+let ringTimer = null;
+function ringMotif(c, t0) {
+  // bright little phrase that repeats, phone-call feel
+  tone(c, 659.25, t0 + 0.00, 0.16, 0.16, "triangle"); // E5
+  tone(c, 987.77, t0 + 0.16, 0.16, 0.16, "triangle"); // B5
+  tone(c, 1318.51, t0 + 0.32, 0.16, 0.16, "triangle"); // E6
+  tone(c, 987.77, t0 + 0.52, 0.28, 0.15, "triangle"); // B5 (held)
+}
+export function startRing() {
+  if (ringTimer || !enabled) return;
+  const play = () => { try { const c = ac(); ringMotif(c, c.currentTime); } catch {} };
+  play();
+  ringTimer = setInterval(play, 1700);
+}
+export function stopRing() { if (ringTimer) { clearInterval(ringTimer); ringTimer = null; } }

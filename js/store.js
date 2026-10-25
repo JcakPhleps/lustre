@@ -78,13 +78,18 @@ class MockStore {
     this._login({ uid: "me", username: u.toLowerCase(), email: email || null, name: u });
   }
   async signOut() { this._user = null; this._authCbs.forEach(cb => cb(null)); }
-  async updateProfile({ name, email }) {
+  async updateProfile({ name, email, photo }) {
     if (!this._user) return;
     if (name !== undefined) this._user.name = name;
     if (email !== undefined) this._user.email = email || null;
+    if (photo !== undefined) this._user.photo = photo || null;
     this._authCbs.forEach(cb => cb(this._user));
   }
   async changePassword() { /* demo: no-op */ }
+  async processAvatar(file) { return await resizeToDataURL(file, 160, 0.82); }
+  async getProfile() { return {}; }
+  startGlobalPresence() {}
+  onActiveCount(cb) { cb(1); return () => {}; }
 
   /* friends (demo: adding a friend just adds them instantly) */
   onFriendRequests(cb) { cb([]); return () => {}; }
@@ -224,7 +229,7 @@ class MockStore {
 /*  FIREBASE STORE — real backend (lazy-loaded)                           */
 /* ===================================================================== */
 class FirebaseStore {
-  constructor() { this.mode = "firebase"; this._authCbs = []; this._user = null; }
+  constructor() { this.mode = "firebase"; this._authCbs = []; this._user = null; this._profileCache = new Map(); }
 
   async init() {
     const V = "10.12.0", base = `https://www.gstatic.com/firebasejs/${V}`;
@@ -240,7 +245,7 @@ class FirebaseStore {
     this._auth.onAuthStateChanged(this.auth, async (u) => {
       if (u) {
         const prof = await this._loadProfile(u);
-        this._user = { uid: u.uid, username: prof.username, name: prof.name || prof.username, email: prof.email || null };
+        this._user = { uid: u.uid, username: prof.username, name: prof.name || prof.username, email: prof.email || null, photo: prof.photo || null };
       } else { this._user = null; }
       this._authCbs.forEach(cb => cb(this._user));
       if (this._user) this._presenceHeartbeat();
@@ -276,17 +281,55 @@ class FirebaseStore {
       { username: uname, name: uname, email: realEmail || null, createdAt: this._fs.serverTimestamp() });
   }
   async signOut() { await this._auth.signOut(this.auth); }
-  async updateProfile({ name, email }) {
+  async updateProfile({ name, email, photo }) {
     const patch = {};
     if (name !== undefined) patch.name = name;
     if (email !== undefined) patch.email = email || null;
+    if (photo !== undefined) patch.photo = photo || null;
     if (Object.keys(patch).length) await this._fs.updateDoc(this._fs.doc(this.db, "users", this._user.uid), patch);
     if (name !== undefined) this._user.name = name;
     if (email !== undefined) this._user.email = email || null;
+    if (photo !== undefined) this._user.photo = photo || null;
+    this._profileCache.delete(this._user.uid);
     this._authCbs.forEach(cb => cb(this._user));
   }
   async changePassword(newPass) {
     await this._auth.updatePassword(this.auth.currentUser, newPass);
+  }
+  // compress an uploaded image to a small avatar data URL (free tier, no Storage)
+  async processAvatar(file) { return await resizeToDataURL(file, 160, 0.82); }
+  // cached read of any user's public profile (for showing their pfp/name)
+  getProfile(uid) {
+    if (!this._profileCache.has(uid)) {
+      this._profileCache.set(uid, (async () => {
+        try { const s = await this._fs.getDoc(this._fs.doc(this.db, "users", uid)); return s.exists() ? s.data() : {}; }
+        catch { return {}; }
+      })());
+    }
+    return this._profileCache.get(uid);
+  }
+
+  /* ---------------- global presence ("x active") ---------------- */
+  startGlobalPresence() {
+    if (this._gpStarted) return; this._gpStarted = true;
+    const beat = () => {
+      if (!this._user) return;
+      this._fs.setDoc(this._fs.doc(this.db, "presence_global", this._user.uid),
+        { at: this._fs.serverTimestamp(), name: this._user.name }, { merge: true }).catch(() => {});
+    };
+    beat();
+    this._gpTimer = setInterval(beat, 30000);
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) beat(); });
+    window.addEventListener("beforeunload", () => {
+      try { this._fs.deleteDoc(this._fs.doc(this.db, "presence_global", this._user.uid)); } catch {}
+    });
+  }
+  onActiveCount(cb) {
+    return this._fs.onSnapshot(this._fs.collection(this.db, "presence_global"), snap => {
+      const cutoff = Date.now() - 65000; let n = 0;
+      snap.forEach(d => { if ((d.data().at?.toMillis?.() || 0) >= cutoff) n++; });
+      cb(Math.max(n, 1));
+    });
   }
 
   /* ---------------- friends ---------------- */
