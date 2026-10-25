@@ -22,7 +22,7 @@ function mediaErr(e, video) {
   switch (e && e.name) {
     case "NotAllowedError":
     case "SecurityError":
-      return "Camera/mic access was blocked. Click the camera icon in the address bar to allow it — and on a Mac, check System Settings → Privacy & Security → Camera/Microphone for your browser — then try again.";
+      return "Lustre needs camera & microphone access to call. Please allow it when your browser asks, then try again.";
     case "NotFoundError":
     case "OverconstrainedError":
       return video ? "No camera found — try a voice call instead." : "No microphone found.";
