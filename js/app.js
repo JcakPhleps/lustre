@@ -136,7 +136,11 @@ applyPrefs();
    BOOT
    ===================================================================== */
 await store.init();
-store.onAuth(user => { user ? renderApp(user) : renderAuth(); });
+store.onAuth(user => {
+  if (!user) return renderAuth();
+  if (store.locked) return renderUnlock(user);
+  renderApp(user);
+});
 
 // quick preview: open with #demo to jump straight into the sample chats
 if (DEMO && location.hash === "#demo" && !store.me()) store.signIn("you@lustre.app");
@@ -216,6 +220,30 @@ function renderAuth() {
 
   screen.innerHTML = "";
   screen.append(el("div", { class: "center" }, [el("div", {}, [card, ...extras])]));
+}
+
+/* unlock screen — fresh device with no cached key needs the password */
+function renderUnlock(user) {
+  const err = el("div", { class: "err" });
+  const pass = el("input", { class: "input", type: "password", placeholder: "Your password", autocomplete: "current-password" });
+  const btn = el("button", { class: "btn blue", text: "Unlock" });
+  const go = async () => {
+    err.textContent = ""; btn.disabled = true;
+    const ok = await store.unlock(pass.value);
+    if (!ok) { err.textContent = "Wrong password — couldn’t unlock your messages."; btn.disabled = false; }
+  };
+  btn.onclick = go;
+  pass.addEventListener("keydown", e => e.key === "Enter" && go());
+  const card = el("div", { class: "card" }, [
+    el("h1", {}, ["Lustre", el("span", { class: "indev", text: "indev" })]),
+    el("div", { class: "tag", text: "Enter your password to unlock your encrypted messages on this device" }),
+    el("label", { text: "Password" }), pass,
+    err,
+    el("div", { class: "row" }, [btn]),
+    el("div", { class: "muted" }, [el("span", { class: "link", text: "Sign out", onclick: () => store.signOut() })]),
+  ]);
+  screen.innerHTML = "";
+  screen.append(el("div", { class: "center" }, [card]));
 }
 
 /* =====================================================================

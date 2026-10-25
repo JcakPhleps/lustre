@@ -11,6 +11,7 @@
    ========================================================================= */
 
 import { firebaseConfig, isConfigured } from "./firebase-config.js";
+import * as E2E from "./crypto.js";
 
 const now = () => Date.now();
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -229,7 +230,12 @@ class MockStore {
 /*  FIREBASE STORE — real backend (lazy-loaded)                           */
 /* ===================================================================== */
 class FirebaseStore {
-  constructor() { this.mode = "firebase"; this._authCbs = []; this._user = null; this._profileCache = new Map(); }
+  constructor() {
+    this.mode = "firebase"; this._authCbs = []; this._user = null;
+    this._profileCache = new Map(); this._memberIds = {};
+    this._privKey = null; this._locked = false; this._authBusy = false;
+  }
+  get locked() { return this._locked; }
 
   async init() {
     const V = "10.12.0", base = `https://www.gstatic.com/firebasejs/${V}`;
@@ -243,13 +249,48 @@ class FirebaseStore {
     this.storage = this._st.getStorage(this.app);
 
     this._auth.onAuthStateChanged(this.auth, async (u) => {
-      if (u) {
-        const prof = await this._loadProfile(u);
-        this._user = { uid: u.uid, username: prof.username, name: prof.name || prof.username, email: prof.email || null, photo: prof.photo || null };
-      } else { this._user = null; }
-      this._authCbs.forEach(cb => cb(this._user));
-      if (this._user) this._presenceHeartbeat();
+      if (this._authBusy) return;              // signIn/signUp drives the flow explicitly
+      if (u) await this._handleAuth(u, null);  // page reload: unlock from device cache
+      else { this._user = null; this._privKey = null; this._authCbs.forEach(cb => cb(null)); }
     });
+  }
+
+  async _handleAuth(u, password) {
+    const prof = await this._loadProfile(u);
+    this._user = { uid: u.uid, username: prof.username, name: prof.name || prof.username,
+      email: prof.email || null, photo: prof.photo || null, pubKey: prof.pubKey || null };
+    await this._setupKeys(password);
+    this._authCbs.forEach(cb => cb(this._user));
+    if (this._user) this._presenceHeartbeat();
+  }
+
+  // Establish the E2EE private key: with a password we unwrap (or create) it;
+  // without one (reload) we load the decrypted copy cached for this device.
+  async _setupKeys(password) {
+    const uid = this._user.uid, ref = this._fs.doc(this.db, "users", uid);
+    if (password) {
+      const snap = await this._fs.getDoc(ref); const d = snap.exists() ? snap.data() : {};
+      if (d.pubKey && d.encPriv) {
+        try { this._privKey = await E2E.unwrapPrivateKey(d.encPriv, d.salt, d.iv, password); this._locked = false; }
+        catch { this._locked = true; return; }
+      } else {
+        const idk = await E2E.generateIdentity();
+        const w = await E2E.wrapPrivateKey(idk.privateKey, password);
+        await this._fs.updateDoc(ref, { pubKey: idk.publicKeyB64, encPriv: w.encPrivB64, salt: w.saltB64, iv: w.ivB64 });
+        this._privKey = idk.privateKey; this._user.pubKey = idk.publicKeyB64;
+        this._profileCache.delete(uid); this._locked = false;
+      }
+      try { await E2E.saveDeviceKey(uid, this._privKey); } catch {}
+    } else {
+      try { const dk = await E2E.loadDeviceKey(uid); if (dk) { this._privKey = dk; this._locked = false; return; } } catch {}
+      this._locked = true;   // no cached key on this device → need password to unlock
+    }
+  }
+  async unlock(password) {   // re-enter password to restore keys on a fresh device
+    if (!this._user) return false;
+    await this._setupKeys(password);
+    if (!this._locked) this._authCbs.forEach(cb => cb(this._user));
+    return !this._locked;
   }
 
   onAuth(cb) { this._authCbs.push(cb); if (this._user !== undefined) cb(this._user); }
@@ -271,16 +312,29 @@ class FirebaseStore {
   }
 
   async signIn(username, pass) {
-    await this._auth.signInWithEmailAndPassword(this.auth, this._emailFor(username), pass);
+    this._authBusy = true;
+    try {
+      const cred = await this._auth.signInWithEmailAndPassword(this.auth, this._emailFor(username), pass);
+      await this._handleAuth(cred.user, pass);
+    } finally { this._authBusy = false; }
   }
   async signUp(username, pass, realEmail) {
-    const uname = username.trim().toLowerCase();
-    const cred = await this._auth.createUserWithEmailAndPassword(this.auth, this._emailFor(uname), pass);
-    await this._auth.updateProfile(cred.user, { displayName: uname });
-    await this._fs.setDoc(this._fs.doc(this.db, "users", cred.user.uid),
-      { username: uname, name: uname, email: realEmail || null, createdAt: this._fs.serverTimestamp() });
+    this._authBusy = true;
+    try {
+      const uname = username.trim().toLowerCase();
+      const cred = await this._auth.createUserWithEmailAndPassword(this.auth, this._emailFor(uname), pass);
+      await this._auth.updateProfile(cred.user, { displayName: uname });
+      await this._fs.setDoc(this._fs.doc(this.db, "users", cred.user.uid),
+        { username: uname, name: uname, email: realEmail || null, createdAt: this._fs.serverTimestamp() });
+      await this._handleAuth(cred.user, pass);   // generates + stores E2EE keys
+    } finally { this._authBusy = false; }
   }
-  async signOut() { await this._auth.signOut(this.auth); }
+  async signOut() {
+    const uid = this._user?.uid;
+    this._privKey = null; this._locked = false;
+    if (uid) try { await E2E.clearDeviceKey(uid); } catch {}   // wipe device key (shared computers)
+    await this._auth.signOut(this.auth);
+  }
   async updateProfile({ name, email, photo }) {
     const patch = {};
     if (name !== undefined) patch.name = name;
@@ -295,6 +349,37 @@ class FirebaseStore {
   }
   async changePassword(newPass) {
     await this._auth.updatePassword(this.auth.currentUser, newPass);
+    if (this._privKey) {   // re-wrap the E2EE key with the new password
+      const w = await E2E.wrapPrivateKey(this._privKey, newPass);
+      await this._fs.updateDoc(this._fs.doc(this.db, "users", this._user.uid),
+        { encPriv: w.encPrivB64, salt: w.saltB64, iv: w.ivB64 });
+      this._profileCache.delete(this._user.uid);
+    }
+  }
+  async _membersFor(convId) {
+    let ids = this._memberIds[convId];
+    if (!ids) {
+      const s = await this._fs.getDoc(this._fs.doc(this.db, "conversations", convId));
+      ids = s.exists() ? (s.data().memberIds || []) : [];
+      this._memberIds[convId] = ids;
+    }
+    const members = [];
+    for (const u of ids) {
+      let p = await this.getProfile(u);
+      if (!p?.pubKey) { this._profileCache.delete(u); p = await this.getProfile(u); }  // avoid stale pre-keygen cache
+      members.push({ uid: u, pubKey: p?.pubKey || (u === this._user.uid ? this._user.pubKey : null) });
+    }
+    return members;
+  }
+  async _decrypt(enc, senderUid) {
+    if (!this._privKey || !senderUid) return null;
+    try {
+      let sp = await this.getProfile(senderUid);
+      if (!sp?.pubKey) { this._profileCache.delete(senderUid); sp = await this.getProfile(senderUid); }
+      const pub = sp?.pubKey || (senderUid === this._user.uid ? this._user.pubKey : null);
+      if (!pub) return null;
+      return await E2E.decryptMessage(enc, pub, this._user.uid, this._privKey);
+    } catch { return null; }
   }
   // compress an uploaded image to a small avatar data URL (free tier, no Storage)
   async processAvatar(file) { return await resizeToDataURL(file, 160, 0.82); }
@@ -403,20 +488,24 @@ class FirebaseStore {
     const q = this._fs.query(
       this._fs.collection(this.db, "conversations"),
       this._fs.where("memberIds", "array-contains", this._user.uid));
-    return this._fs.onSnapshot(q, snap => {
-      const list = snap.docs.map(d => {
+    return this._fs.onSnapshot(q, async snap => {
+      const list = [];
+      for (const d of snap.docs) {
         const v = d.data();
+        this._memberIds[d.id] = v.memberIds || [];     // cache for encryption
         const others = (v.members || []).filter(m => m.uid !== this._user.uid);
         const title = v.type === "group" ? (v.name || others.map(m => m.name).join(", "))
                                           : (others[0]?.name || "Chat");
-        return {
+        let preview = v.lastText || "";                // legacy plaintext
+        if (v.lastEnc) { const dec = await this._decrypt(v.lastEnc, v.lastFrom); preview = dec === null ? "🔒 Encrypted" : dec; }
+        list.push({
           id: d.id, type: v.type, name: title, members: others,
           avatarText: initials(title), online: false,
-          lastText: v.lastText || "", lastTs: v.lastTs?.toMillis?.() || Date.now(),
+          lastText: preview, lastTs: v.lastTs?.toMillis?.() || Date.now(),
           lastFrom: v.lastFrom || null,
           unread: (v.unread || {})[this._user.uid] || 0,
-        };
-      });
+        });
+      }
       list.sort((a, b) => b.lastTs - a.lastTs);
       cb(list);
     });
@@ -442,6 +531,7 @@ class FirebaseStore {
       lastText: "", lastTs: this._fs.serverTimestamp(), unread: {},
       createdAt: this._fs.serverTimestamp(),
     });
+    this._memberIds[ref.id] = members.map(m => m.uid);
     return ref.id;
   }
 
@@ -449,26 +539,37 @@ class FirebaseStore {
     const q = this._fs.query(
       this._fs.collection(this.db, "conversations", convId, "messages"),
       this._fs.orderBy("ts", "asc"), this._fs.limitToLast(200));
-    return this._fs.onSnapshot(q, snap => {
-      cb(snap.docs.map(d => {
+    return this._fs.onSnapshot(q, async snap => {
+      const out = [];
+      for (const d of snap.docs) {
         const v = d.data();
-        return {
-          id: d.id, from: v.from, text: v.text || "", image: v.image || null, audio: v.audio || null,
-          ts: v.ts?.toMillis?.() || Date.now(), mine: v.from?.uid === this._user.uid,
-          readBy: v.readBy || [],
-        };
-      }));
+        const base = { id: d.id, from: v.from, ts: v.ts?.toMillis?.() || Date.now(),
+          mine: v.from?.uid === this._user.uid, readBy: v.readBy || [] };
+        if (v.enc) {
+          const dec = await this._decrypt(v.enc, v.from?.uid);
+          if (dec === null) out.push({ ...base, text: "🔒 Can’t decrypt this message", image: null, audio: null });
+          else { let c = {}; try { c = JSON.parse(dec); } catch {}
+            out.push({ ...base, text: c.text || "", image: c.image || null, audio: c.audio || null }); }
+        } else {
+          out.push({ ...base, text: v.text || "", image: v.image || null, audio: v.audio || null }); // legacy
+        }
+      }
+      cb(out);
     });
   }
 
   async sendMessage(convId, { text, image, audio }) {
+    if (!this._privKey) throw new Error("Your messages are locked — sign in again to unlock encryption.");
     const from = { uid: this._user.uid, name: this._user.name };
+    const members = await this._membersFor(convId);
+    const content = JSON.stringify({ text: text || "", image: image || null, audio: audio || null });
+    const enc = await E2E.encryptMessage(content, members, this._privKey);
+    const kind = image ? "image" : audio ? "audio" : "text";
     await this._fs.addDoc(this._fs.collection(this.db, "conversations", convId, "messages"),
-      { from, text: text || "", image: image || null, audio: audio || null,
-        ts: this._fs.serverTimestamp(), readBy: [this._user.uid] });
+      { from, enc, kind, ts: this._fs.serverTimestamp(), readBy: [this._user.uid] });
+    const lastEnc = await E2E.encryptMessage(text || (image ? "Photo" : "Voice message"), members, this._privKey);
     await this._fs.updateDoc(this._fs.doc(this.db, "conversations", convId),
-      { lastText: text || (image ? "Photo" : "Voice message"),
-        lastTs: this._fs.serverTimestamp(), lastFrom: this._user.uid });
+      { lastEnc, lastKind: kind, lastTs: this._fs.serverTimestamp(), lastFrom: this._user.uid });
   }
 
   /* presence: a lightweight doc per conversation keyed by uid */
@@ -508,14 +609,15 @@ class FirebaseStore {
 
   // Free tier: no Cloud Storage — compress and store media as data URLs in the
   // message doc. Firestore caps docs at ~1 MB, so we guard the size.
+  // caps account for encryption (~1.4x) so the encrypted doc stays under 1 MB
   async uploadImage(file) {
-    let url = await resizeToDataURL(file, 1000, 0.7);
-    if (url.length > 900000) url = await resizeToDataURL(file, 720, 0.6);
-    if (url.length > 1000000) throw new Error("That image is too large for the free tier.");
+    let url = await resizeToDataURL(file, 900, 0.7);
+    if (url.length > 560000) url = await resizeToDataURL(file, 640, 0.58);
+    if (url.length > 680000) throw new Error("That image is too large — try a smaller one.");
     return url;
   }
   async uploadAudio(blob, dur) {
-    if (blob.size > 720000) throw new Error("Voice message is too long for the free tier (~45s max).");
+    if (blob.size > 440000) throw new Error("Voice message is too long — keep it under ~30 seconds.");
     return { url: await blobToDataURL(blob), dur };
   }
 
