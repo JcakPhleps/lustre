@@ -12,6 +12,21 @@ const ICE = { iceServers: [
   { urls: "stun:stun1.l.google.com:19302" },
 ]};
 
+function mediaErr(e, video) {
+  switch (e && e.name) {
+    case "NotAllowedError":
+    case "SecurityError":
+      return "Camera/mic access was blocked. Click the camera icon in the address bar to allow it — and on a Mac, check System Settings → Privacy & Security → Camera/Microphone for your browser — then try again.";
+    case "NotFoundError":
+    case "OverconstrainedError":
+      return video ? "No camera found — try a voice call instead." : "No microphone found.";
+    case "NotReadableError":
+      return "Your camera or mic is being used by another app. Close it and try again.";
+    default:
+      return e?.message || "Couldn’t access your camera/microphone.";
+  }
+}
+
 export class CallManager {
   constructor(store) {
     this.store = store;
@@ -31,7 +46,14 @@ export class CallManager {
   onEnd(fn) { this._onEnd = fn; }
 
   async _getMedia(video) {
-    this.local = await navigator.mediaDevices.getUserMedia({ audio: true, video });
+    if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+      throw new Error("Calls need a secure page — use the https site or http://localhost (not an http:// IP address).");
+    }
+    try {
+      this.local = await navigator.mediaDevices.getUserMedia({ audio: true, video });
+    } catch (e) {
+      throw new Error(mediaErr(e, video));
+    }
     this._onTile("me", this.local, "You");
     return this.local;
   }

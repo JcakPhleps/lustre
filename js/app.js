@@ -570,7 +570,7 @@ async function startCall(conv, video) {
   callStage.classList.add("show");
   sfx.startRing();                        // ringback while waiting for an answer
   try { await calls.start(conv, { video }); }
-  catch (e) { sfx.stopRing(); alert("Couldn’t start call: " + (e.message || e)); calls.hangup(); }
+  catch (e) { sfx.stopRing(); callStage.classList.remove("show"); alert(e.message || "Couldn’t start the call."); calls.hangup(); }
 }
 $("#callHang").onclick = () => calls.hangup();
 $("#callMute").onclick = e => { const muted = calls.toggleMute(); e.currentTarget.classList.toggle("active", muted); e.currentTarget.textContent = muted ? "Unmute" : "Mute"; };
@@ -601,7 +601,7 @@ $("#incomingAccept").onclick = async () => {
   const { conv, info } = incomingInfo; incomingInfo = null;
   callStage.classList.add("show"); callGrid.innerHTML = "";
   try { await calls.accept(conv, info); }
-  catch (e) { alert("Couldn’t join call: " + (e.message || e)); calls.hangup(); }
+  catch (e) { callStage.classList.remove("show"); alert(e.message || "Couldn’t join the call."); calls.hangup(); }
 };
 $("#incomingDecline").onclick = () => {
   sfx.stopRing();
