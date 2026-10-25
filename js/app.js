@@ -261,7 +261,7 @@ function renderApp(user) {
         if (prev !== undefined && c.lastTs > prev && c.id !== activeId
             && c.lastFrom && c.lastFrom !== store.me().uid) {
           sfx.playReceive();
-          if (document.hidden) notify(c.name, c.lastText || "New message", "msg-" + c.id);
+          notify(c.name, c.lastText || "New message", "msg-" + c.id);   // another chat → always notify
         }
       }
     } else convSeen = new Map();
@@ -551,6 +551,8 @@ function updateStatus(statusEl, conv, pres) {
    CALLS
    ===================================================================== */
 const callStage = $("#callStage"), callGrid = $("#callGrid");
+let outgoingTimer = null, callConnected = false;
+const RING_MS = 1700, MAX_RINGS = 20;   // give up after ~20 rings
 calls.onTile((peerId, stream, label) => {
   let tile = callGrid.querySelector(`[data-peer="${peerId}"]`);
   if (!tile) {
@@ -561,16 +563,23 @@ calls.onTile((peerId, stream, label) => {
   }
   tile.querySelector("video").srcObject = stream;
   tile.querySelector(".label").textContent = label;
-  if (peerId !== "me") sfx.stopRing();   // remote connected → stop ringing
+  if (peerId !== "me") { callConnected = true; clearTimeout(outgoingTimer); sfx.stopRing(); }  // connected
 });
-calls.onEnd(() => { sfx.stopRing(); callStage.classList.remove("show"); callGrid.innerHTML = ""; });
+calls.onEnd(() => { clearTimeout(outgoingTimer); sfx.stopRing(); callStage.classList.remove("show"); callGrid.innerHTML = ""; });
 
 async function startCall(conv, video) {
   callGrid.innerHTML = "";
+  callConnected = false; clearTimeout(outgoingTimer);
   callStage.classList.add("show");
   sfx.startRing();                        // ringback while waiting for an answer
-  try { await calls.start(conv, { video }); }
-  catch (e) { sfx.stopRing(); callStage.classList.remove("show"); alert(e.message || "Couldn’t start the call."); calls.hangup(); }
+  try {
+    await calls.start(conv, { video });
+    outgoingTimer = setTimeout(() => {     // no answer after ~20 rings → end it
+      if (!callConnected) { calls.hangup(); alert("No answer."); }
+    }, RING_MS * MAX_RINGS);
+  } catch (e) {
+    sfx.stopRing(); callStage.classList.remove("show"); alert(e.message || "Couldn’t start the call."); calls.hangup();
+  }
 }
 $("#callHang").onclick = () => calls.hangup();
 $("#callMute").onclick = e => { const muted = calls.toggleMute(); e.currentTarget.classList.toggle("active", muted); e.currentTarget.textContent = muted ? "Unmute" : "Mute"; };
@@ -814,6 +823,7 @@ function openSettings() {
       if (perm !== "granted") { ntf.checked = false; prefs.notify = false; prefSet("notify", "0"); $("#setErr").textContent = "Notifications are blocked in your browser settings."; $("#setErr").style.color = ""; return; }
     }
     prefs.notify = ntf.checked; prefSet("notify", ntf.checked ? "1" : "0");
+    if (ntf.checked) { try { const n = new Notification("Lustre", { body: "Notifications are on." }); setTimeout(() => n.close(), 4000); } catch {} }
   };
   $("#pwArea").classList.add("hidden"); $("#pwNew").value = "";
   $("#setErr").textContent = ""; $("#setErr").style.color = "";

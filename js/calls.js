@@ -85,6 +85,16 @@ export class CallManager {
     await this._connectTo(peer.uid, conv.id, true);
     await this.fs.setDoc(this.fs.doc(this.db, "conversations", conv.id, "calls", "live"),
       { from: this.store.me().uid, fromName: this.store.me().name, video, at: this.fs.serverTimestamp() });
+    this._watchLive(conv.id);
+  }
+
+  // when the shared call doc disappears, the other side ended it → hang up too
+  _watchLive(convId) {
+    let saw = false;
+    this._unsub.push(this.fs.onSnapshot(this.fs.doc(this.db, "conversations", convId, "calls", "live"), snap => {
+      if (snap.exists()) saw = true;
+      else if (saw) this.hangup();
+    }));
   }
 
   /* ---------------- incoming ---------------- */
@@ -102,6 +112,7 @@ export class CallManager {
     this.active = { convId: conv.id, video: info.video, members: conv.members };
     await this._getMedia(info.video);
     await this._connectTo(info.from, conv.id, false); // answerer must NOT clear signals
+    this._watchLive(conv.id);
   }
 
   async decline(conv) {
@@ -121,9 +132,7 @@ export class CallManager {
       this._onTile(peerUid, remote, "Them");
     };
     pc.onconnectionstatechange = () => {
-      if (["failed", "disconnected", "closed"].includes(pc.connectionState)) {
-        // let the other side's hangup drive teardown; nothing to do here for indev
-      }
+      if (pc.connectionState === "failed") this.hangup();   // dead connection → end
     };
 
     const me = this.store.me().uid;
