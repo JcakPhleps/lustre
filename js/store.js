@@ -199,6 +199,7 @@ class MockStore {
         text, image: null, audio: null, ts: now(), mine: false, readBy: ["me"] };
       this._msgs[conv.id].push(reply);
       conv.lastText = text; conv.lastTs = reply.ts; conv.lastFrom = partner.uid;
+      conv.unread = (conv.unread || 0) + 1;   // like Firebase; the open chat clears it
       this._emitMsgs(conv.id); this._emitConvs();
       setTimeout(() => { pres.viewing.delete(partner.name); this._emitPres(conv.id); }, 4000);
     }, 2400);
