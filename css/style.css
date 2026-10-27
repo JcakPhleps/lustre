@@ -354,7 +354,7 @@ html, body {
 
 /* image & voice in bubbles */
 .bubble.media { padding: 4px; }
-.bubble.media img { display: block; max-width: 220px; border-radius: 13px; }
+.bubble.media img { display: block; max-width: 220px; border-radius: 13px; cursor: zoom-in; }
 
 /* voice message */
 .voice { display: flex; align-items: center; gap: 9px; min-width: 150px; }
@@ -530,6 +530,20 @@ pre.code { background:#2b2b2b; color:#9ee493; font-size:11px; border-radius:8px;
   display: none; align-items: center; justify-content: center; z-index: 50; padding: 20px;
 }
 .overlay.show { display: flex; }
+
+/* image viewer */
+.lightbox {
+  position: fixed; inset: 0; z-index: 900; padding: 56px 16px 16px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.85); animation: lb-in .15s ease-out;
+}
+.lightbox img {
+  max-width: 100%; max-height: 100%; object-fit: contain;
+  border-radius: 6px; box-shadow: 0 10px 40px rgba(0,0,0,.6);
+}
+.lightbox-bar { position: absolute; top: 12px; right: 12px; display: flex; gap: 8px; }
+.lightbox-bar .btn { text-decoration: none; }
+@keyframes lb-in { from { opacity: 0; } to { opacity: 1; } }
 
 /* =====================================================================
    CALL UI

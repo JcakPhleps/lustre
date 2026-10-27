@@ -621,7 +621,7 @@ function msgNode(m, conv, prev, onMenu) {
     bubble = el("div", { class: "unsent", text: m.mine ? "You unsent a message" : `${m.from.name} unsent a message` });
   } else if (m.image) {
     bubble = el("div", { class: "bubble media " + (m.mine ? "me" : "them") },
-      [el("img", { src: m.image, onclick: () => window.open(m.image) })]);
+      [el("img", { src: m.image, onclick: () => openLightbox(m.image) })]);
   } else if (m.audio) {
     bubble = el("div", { class: "bubble " + (m.mine ? "me" : "them") }, [voiceNode(m.audio)]);
   } else {
@@ -655,6 +655,21 @@ function attachLongPress(node, open) {
   node.addEventListener("touchmove", cancel, { passive: true });
   node.addEventListener("touchcancel", cancel);
   node.addEventListener("touchend", e => { cancel(); if (fired) e.preventDefault(); });   // no click after a long-press
+}
+
+/* full-screen image viewer (click a photo in the chat) */
+function openLightbox(src) {
+  const close = () => { box.remove(); document.removeEventListener("keydown", onKey); };
+  const onKey = e => { if (e.key === "Escape") close(); };
+  const box = el("div", { class: "lightbox", onclick: e => { if (e.target === box) close(); } }, [
+    el("img", { src, alt: "Photo" }),
+    el("div", { class: "lightbox-bar" }, [
+      el("a", { class: "btn", text: "Save", href: src, download: "lustre-photo.jpg" }),
+      el("button", { class: "btn", text: "✕", title: "Close", onclick: close }),
+    ]),
+  ]);
+  document.addEventListener("keydown", onKey);
+  document.body.append(box);
 }
 
 /* small popup menu (Copy / Edit / Unsend) */
