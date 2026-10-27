@@ -182,6 +182,18 @@ class MockStore {
     this._emitMsgs(convId); this._emitConvs();
     this._simulateReply(conv, msg);
   }
+  async editMessage(convId, msgId, text) {
+    const list = this._msgs[convId] || [], m = list.find(m => m.id === msgId); if (!m) return;
+    m.text = text; m.edited = true;
+    if (list[list.length - 1] === m) this._convs.find(c => c.id === convId).lastText = text;
+    this._emitMsgs(convId); this._emitConvs();
+  }
+  async unsendMessage(convId, msgId) {
+    const list = this._msgs[convId] || [], m = list.find(m => m.id === msgId); if (!m) return;
+    Object.assign(m, { unsent: true, text: "", image: null, audio: null });
+    if (list[list.length - 1] === m) this._convs.find(c => c.id === convId).lastText = "Message unsent";
+    this._emitMsgs(convId); this._emitConvs();
+  }
 
   /* make the demo feel alive: they view → read → type → reply */
   _simulateReply(conv, myMsg) {
@@ -545,8 +557,10 @@ class FirebaseStore {
       for (const d of snap.docs) {
         const v = d.data();
         const base = { id: d.id, from: v.from, ts: v.ts?.toMillis?.() || Date.now(),
-          mine: v.from?.uid === this._user.uid, readBy: v.readBy || [] };
-        if (v.enc) {
+          mine: v.from?.uid === this._user.uid, readBy: v.readBy || [], edited: !!v.editedAt };
+        if (v.unsent) {
+          out.push({ ...base, unsent: true, text: "", image: null, audio: null });
+        } else if (v.enc) {
           const dec = await this._decrypt(v.enc, v.from?.uid);
           if (dec === null) out.push({ ...base, text: "🔒 Can’t decrypt this message", image: null, audio: null });
           else { let c = {}; try { c = JSON.parse(dec); } catch {}
@@ -574,6 +588,34 @@ class FirebaseStore {
     for (const m of members) if (m.uid !== this._user.uid) bumps[`unread.${m.uid}`] = this._fs.increment(1);
     await this._fs.updateDoc(this._fs.doc(this.db, "conversations", convId),
       { lastEnc, lastKind: kind, lastTs: this._fs.serverTimestamp(), lastFrom: this._user.uid, ...bumps });
+  }
+
+  // edit / unsend your own messages. The doc stays put (keeps its place in the
+  // chat): an edit re-encrypts the new text, an unsend wipes the content.
+  async editMessage(convId, msgId, text) {
+    if (!this._privKey) throw new Error("Your messages are locked — sign in again to unlock encryption.");
+    const members = await this._membersFor(convId);
+    const enc = await E2E.encryptMessage(JSON.stringify({ text, image: null, audio: null }), members, this._privKey);
+    await this._fs.updateDoc(this._fs.doc(this.db, "conversations", convId, "messages", msgId),
+      { enc, editedAt: this._fs.serverTimestamp() });
+    if (await this._isLastMessage(convId, msgId)) {
+      const lastEnc = await E2E.encryptMessage(text, members, this._privKey);
+      await this._fs.updateDoc(this._fs.doc(this.db, "conversations", convId), { lastEnc, lastKind: "text" });
+    }
+  }
+  async unsendMessage(convId, msgId) {
+    const gone = this._fs.deleteField();
+    await this._fs.updateDoc(this._fs.doc(this.db, "conversations", convId, "messages", msgId),
+      { unsent: true, kind: "unsent", enc: gone, text: gone, image: gone, audio: gone });
+    if (await this._isLastMessage(convId, msgId))
+      await this._fs.updateDoc(this._fs.doc(this.db, "conversations", convId),
+        { lastEnc: gone, lastText: "Message unsent", lastKind: "unsent" });
+  }
+  async _isLastMessage(convId, msgId) {
+    const snap = await this._fs.getDocs(this._fs.query(
+      this._fs.collection(this.db, "conversations", convId, "messages"),
+      this._fs.orderBy("ts", "desc"), this._fs.limit(1)));
+    return snap.docs[0]?.id === msgId;
   }
 
   /* presence: a lightweight doc per conversation keyed by uid */

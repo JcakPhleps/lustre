@@ -431,7 +431,12 @@ function openConv(id) {
     sendBtn,
   ]);
 
-  chat.append(head, messages, composer);
+  const editBar = el("div", { class: "editbar hidden" }, [
+    el("span", { text: "Editing message" }),
+    el("button", { class: "btn", text: "Cancel", onclick: cancelEdit }),
+  ]);
+
+  chat.append(head, messages, editBar, composer);
   autoGrow(ta);
 
   /* ---- live state + render pipeline ---- */
@@ -445,7 +450,7 @@ function openConv(id) {
 
   // rebuild the message bubbles (only when the message list actually changes)
   function renderMessages() {
-    paintMessages(messages, lastMsgs, conv);
+    paintMessages(messages, lastMsgs, conv, onMsgMenu);
     messages.append(receiptEl);                // keep receipt below the bubbles
     paintTyping(messages, conv, lastPres);     // typing bubble stays last
     updateReceipt();
@@ -507,10 +512,46 @@ function openConv(id) {
   /* ---- actions ---- */
   function sendText() {
     const text = ta.value.trim(); if (!text) return;
+    if (editing) {
+      if (text !== editing.text)
+        store.editMessage(id, editing.id, text).catch(e => alert(e.message || "Couldn’t edit that message."));
+      cancelEdit(); store.setTyping(id, false);
+      return;
+    }
     store.sendMessage(id, { text }); sfx.playSend();
     ta.value = ""; autoGrow(ta); store.setTyping(id, false);
   }
+
+  // edit / unsend (your own messages): right-click, long-press, or the ⋯ button
+  let editing = null;
+  function onMsgMenu(m, x, y) {
+    const isText = !m.image && !m.audio;
+    showMsgMenu(x, y, [
+      isText && { label: "Copy", fn: () => navigator.clipboard?.writeText(m.text) },
+      isText && { label: "Edit", fn: () => startEdit(m) },
+      { label: "Unsend", danger: true, fn: () => unsend(m) },
+    ]);
+  }
+  function startEdit(m) {
+    editing = m;
+    ta.value = m.text; autoGrow(ta); ta.focus();
+    sendBtn.textContent = "Save";
+    editBar.classList.remove("hidden");
+  }
+  function cancelEdit() {
+    editing = null;
+    ta.value = ""; autoGrow(ta);
+    sendBtn.textContent = "Send";
+    editBar.classList.add("hidden");
+  }
+  function unsend(m) {
+    if (!confirm("Unsend this message? It’ll be removed for everyone in the chat.")) return;
+    if (editing?.id === m.id) cancelEdit();
+    store.unsendMessage(id, m.id).catch(e => alert(e.message || "Couldn’t unsend that message."));
+  }
+
   ta.addEventListener("keydown", e => {
+    if (e.key === "Escape" && editing) { e.preventDefault(); cancelEdit(); return; }
     if (e.key !== "Enter") return;
     const send = prefs.enter ? !e.shiftKey : (e.metaKey || e.ctrlKey);
     if (send) { e.preventDefault(); sendText(); }
@@ -555,7 +596,7 @@ function openConv(id) {
 }
 
 /* paint message bubbles with day-stamps, grouping, avatars (receipt is separate) */
-function paintMessages(container, list, conv) {
+function paintMessages(container, list, conv, onMenu) {
   const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 80;
   container.querySelectorAll(".msg,.daystamp,.typingrow").forEach(n => n.remove());
   let lastDay = null;
@@ -563,12 +604,12 @@ function paintMessages(container, list, conv) {
   sorted.forEach((m, i) => {
     const day = fmtDay(m.ts);
     if (day !== lastDay) { container.append(el("div", { class: "daystamp", text: day })); lastDay = day; }
-    container.append(msgNode(m, conv, sorted[i - 1]));
+    container.append(msgNode(m, conv, sorted[i - 1], onMenu));
   });
   if (atBottom) scrollBottom(container);
 }
 
-function msgNode(m, conv, prev) {
+function msgNode(m, conv, prev, onMenu) {
   const sameSender = prev && prev.from.uid === m.from.uid && (m.ts - prev.ts < 120000);
   const stack = el("div", { class: "stack" });
 
@@ -576,7 +617,9 @@ function msgNode(m, conv, prev) {
     stack.append(el("div", { class: "sender", text: m.from.name }));
 
   let bubble;
-  if (m.image) {
+  if (m.unsent) {
+    bubble = el("div", { class: "unsent", text: m.mine ? "You unsent a message" : `${m.from.name} unsent a message` });
+  } else if (m.image) {
     bubble = el("div", { class: "bubble media " + (m.mine ? "me" : "them") },
       [el("img", { src: m.image, onclick: () => window.open(m.image) })]);
   } else if (m.audio) {
@@ -585,13 +628,51 @@ function msgNode(m, conv, prev) {
     bubble = el("div", { class: "bubble " + (m.mine ? "me" : "them"), text: m.text });
   }
   stack.append(bubble);
+  if (m.edited && !m.unsent) stack.append(el("div", { class: "edited", text: "Edited" }));
 
   const row = el("div", { class: "msg" + (m.mine ? " mine" : "") });
   if (conv.type === "group" && !m.mine)
     row.append(avatarEl({ uid: m.from.uid, name: m.from.name }, { cls: "sm" }));
   row.append(stack);
+  if (m.mine && !m.unsent && onMenu) {
+    const open = (x, y) => onMenu(m, x, y);
+    attachLongPress(bubble, open);
+    row.append(el("button", { class: "msgmore", text: "⋯", title: "Edit or unsend",
+      onclick: e => { const r = e.currentTarget.getBoundingClientRect(); open(r.left, r.bottom + 4); } }));
+  }
   return row;
 }
+
+/* right-click or long-press (touch) on a bubble → open its menu */
+function attachLongPress(node, open) {
+  node.addEventListener("contextmenu", e => { e.preventDefault(); open(e.clientX, e.clientY); });
+  let timer = null, fired = false;
+  node.addEventListener("touchstart", e => {
+    const t = e.touches[0]; fired = false;
+    timer = setTimeout(() => { fired = true; open(t.clientX, t.clientY); }, 500);
+  }, { passive: true });
+  const cancel = () => { clearTimeout(timer); timer = null; };
+  node.addEventListener("touchmove", cancel, { passive: true });
+  node.addEventListener("touchcancel", cancel);
+  node.addEventListener("touchend", e => { cancel(); if (fired) e.preventDefault(); });   // no click after a long-press
+}
+
+/* small popup menu (Copy / Edit / Unsend) */
+let msgMenu = null;
+function showMsgMenu(x, y, items) {
+  closeMsgMenu();
+  msgMenu = el("div", { class: "msgmenu" }, items.filter(Boolean).map(it =>
+    el("button", { class: it.danger ? "danger" : "", text: it.label,
+      onclick: () => { closeMsgMenu(); it.fn(); } })));
+  document.body.append(msgMenu);
+  const r = msgMenu.getBoundingClientRect();
+  msgMenu.style.left = Math.max(8, Math.min(x, innerWidth - r.width - 8)) + "px";
+  msgMenu.style.top = Math.max(8, Math.min(y, innerHeight - r.height - 8)) + "px";
+}
+function closeMsgMenu() { msgMenu?.remove(); msgMenu = null; }
+document.addEventListener("pointerdown", e => { if (msgMenu && !msgMenu.contains(e.target)) closeMsgMenu(); }, true);
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeMsgMenu(); });
+window.addEventListener("resize", closeMsgMenu);
 
 function voiceNode(audio) {
   const a = new Audio(audio.url);

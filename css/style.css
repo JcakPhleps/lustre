@@ -378,6 +378,43 @@ html, body {
 /* read receipt / delivered line */
 .receipt { font-size: 11px; color: #8a9099; margin: 1px 6px 8px; text-align: right; }
 
+/* edit / unsend */
+.unsent {
+  font-size: 12.5px; font-style: italic; color: #7a8089; text-shadow: 0 1px 0 var(--emboss);
+  padding: 6px 12px; border: 1px dashed rgba(0,0,0,.18); border-radius: var(--radius-bubble);
+}
+.edited { font-size: 10.5px; color: #8a9099; margin: 1px 8px 0; text-shadow: 0 1px 0 var(--emboss); }
+.msg.mine .bubble { -webkit-touch-callout: none; }   /* long-press opens our menu, not iOS's */
+.msgmore {
+  align-self: center; display: none;
+  width: 24px; height: 24px; padding: 0; border-radius: 50%; cursor: pointer;
+  font-size: 14px; line-height: 20px; color: #6b7178;
+  border: 1px solid rgba(0,0,0,.15); background: linear-gradient(#fff, #e4e6ea);
+  box-shadow: inset 0 1px 0 #fff, 0 1px 1px rgba(0,0,0,.15);
+}
+@media (hover: hover) { .msg.mine:hover .msgmore { display: block; } }
+.msgmenu {
+  position: fixed; z-index: 1000; min-width: 140px; padding: 4px 0;
+  border-radius: 8px; border: 1px solid rgba(0,0,0,.25);
+  background: linear-gradient(rgba(255,255,255,.98), rgba(238,240,244,.98));
+  box-shadow: 0 6px 20px rgba(0,0,0,.28), inset 0 1px 0 #fff;
+}
+.msgmenu button {
+  display: block; width: 100%; text-align: left; cursor: pointer;
+  font-family: var(--font); font-size: 13.5px; color: #222;
+  padding: 7px 16px; border: 0; background: none;
+}
+.msgmenu button:hover { background: linear-gradient(var(--blue-mid), #0a6cff); color: #fff; }
+.msgmenu button.danger { color: #d0021b; }
+.msgmenu button.danger:hover { background: linear-gradient(#ff5a5a, #d0021b); color: #fff; }
+.editbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 5px 12px; font-size: 12px; font-weight: 700; color: #4a5560;
+  background: linear-gradient(#eef4fc, #dbe6f3); border-top: 1px solid rgba(0,0,0,.15);
+  text-shadow: 0 1px 0 rgba(255,255,255,.8);
+}
+.editbar .btn { padding: 3px 10px; font-size: 12px; }
+
 /* the "typing…" bubble */
 .typing { display: inline-flex; gap: 4px; padding: 12px 15px; }
 .typing i {
@@ -396,7 +433,7 @@ html, body {
   display: flex; align-items: flex-end; gap: 8px;
 }
 .composer .field {
-  flex: 1;
+  flex: 1; min-width: 0;   /* let it shrink so Send fits on phones */
   display: flex; align-items: center; gap: 6px;
   background: linear-gradient(#f3f3f3, #ffffff);
   border: 1px solid #a7abb2; border-radius: 17px;
@@ -404,7 +441,7 @@ html, body {
   box-shadow: inset 0 1px 3px rgba(0,0,0,.18), 0 1px 0 rgba(255,255,255,.8);
 }
 .composer textarea {
-  flex: 1; border: none; outline: none; resize: none; background: transparent;
+  flex: 1; min-width: 0; border: none; outline: none; resize: none; background: transparent;
   font-family: var(--font); font-size: 14.5px; line-height: 1.3;
   max-height: 96px; padding: 5px 0; color: #222;
 }
