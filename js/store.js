@@ -568,8 +568,11 @@ class FirebaseStore {
     await this._fs.addDoc(this._fs.collection(this.db, "conversations", convId, "messages"),
       { from, enc, kind, ts: this._fs.serverTimestamp(), readBy: [this._user.uid] });
     const lastEnc = await E2E.encryptMessage(text || (image ? "Photo" : "Voice message"), members, this._privKey);
+    // bump everyone else's unread counter (drives the blue new-message dot)
+    const bumps = {};
+    for (const m of members) if (m.uid !== this._user.uid) bumps[`unread.${m.uid}`] = this._fs.increment(1);
     await this._fs.updateDoc(this._fs.doc(this.db, "conversations", convId),
-      { lastEnc, lastKind: kind, lastTs: this._fs.serverTimestamp(), lastFrom: this._user.uid });
+      { lastEnc, lastKind: kind, lastTs: this._fs.serverTimestamp(), lastFrom: this._user.uid, ...bumps });
   }
 
   /* presence: a lightweight doc per conversation keyed by uid */

@@ -468,6 +468,7 @@ function openConv(id) {
       for (const m of added) seenIds.add(m.id);
       const incoming = added.filter(m => !m.mine);
       if (incoming.length) {
+        store.openConversation(id);   // already looking at it — keep the new-message dot off
         sfx.playReceive();
         if (document.hidden) {
           const m = incoming[incoming.length - 1];
