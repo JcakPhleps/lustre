@@ -5,6 +5,7 @@ import { store, DEMO } from "./store.js";
 import { recordVoice, renderWave, fmtDur } from "./audio.js";
 import { CallManager } from "./calls.js";
 import * as sfx from "./sfx.js";
+import { CHANGELOG, VERSION } from "./changelog.js";
 
 /* ---------- tiny DOM helper ---------- */
 function el(tag, attrs = {}, kids = []) {
@@ -30,6 +31,14 @@ const fmtDay = ts => {
   if (diff === 0) return "Today"; if (diff === 1) return "Yesterday";
   return d.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" });
 };
+
+function ageFrom(dobStr) {
+  const d = new Date(dobStr), n = new Date();
+  let a = n.getFullYear() - d.getFullYear();
+  const m = n.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && n.getDate() < d.getDate())) a--;
+  return a;
+}
 
 /* ---------- avatars & profile pictures ---------- */
 const initials = (n = "?") => n.trim().split(/\s+/).map(w => w[0]).slice(0, 2).join("").toUpperCase() || "?";
@@ -161,16 +170,25 @@ function renderAuth() {
     el("label", { html: "Email <span style='font-weight:400;color:#9aa0a8'>(optional — for recovery)</span>" }),
     email,
   ]);
+  const dob = el("input", { class: "input", type: "date" });
+  const dobWrap = el("div", { class: "hidden" }, [el("label", { text: "Date of birth" }), dob]);
+  const agree = el("input", { type: "checkbox" });
+  const agreeWrap = el("div", { class: "hidden" }, [
+    el("label", { class: "toggle", style: "font-size:12px;align-items:flex-start" }, [agree,
+      el("span", { html: "I'm 13 or older and agree to the <a href='terms.html' target='_blank' class='link'>Terms</a> &amp; <a href='privacy.html' target='_blank' class='link'>Privacy Policy</a>." })]),
+  ]);
 
   const submit = el("button", { class: "btn blue", text: "Sign In" });
   const toggle = el("span", { class: "link", text: "Create one" });
 
   const card = el("div", { class: "card" }, [
-    el("h1", {}, ["Lustre", el("span", { class: "indev", text: "indev" })]),
+    el("h1", {}, ["Lustre", el("span", { class: "indev", text: "beta " + VERSION, title: "What's new", onclick: openChangelog })]),
     el("div", { class: "tag", text: "stay in touch — with a little shine" }),
     el("label", { text: "Username" }), username,
     el("label", { text: "Password" }), pass,
     emailWrap,
+    dobWrap,
+    agreeWrap,
     err,
     el("div", { class: "row" }, [submit]),
     el("div", { class: "muted", html: "" }),
@@ -187,6 +205,8 @@ function renderAuth() {
     mode = mode === "in" ? "up" : "in";
     submit.textContent = mode === "in" ? "Sign In" : "Create Account";
     emailWrap.classList.toggle("hidden", mode === "in");
+    dobWrap.classList.toggle("hidden", mode === "in");
+    agreeWrap.classList.toggle("hidden", mode === "in");
     pass.setAttribute("autocomplete", mode === "in" ? "current-password" : "new-password");
     err.textContent = ""; refreshMuted();
   });
@@ -198,10 +218,15 @@ function renderAuth() {
       err.textContent = "Username: 3–20 chars — letters, numbers, . or _ only."; return;
     }
     if (pass.value.length < 6) { err.textContent = "Password must be at least 6 characters."; return; }
+    if (mode === "up") {
+      if (!dob.value) { err.textContent = "Please enter your date of birth."; return; }
+      if (ageFrom(dob.value) < 13) { err.textContent = "You must be at least 13 years old to use Lustre."; return; }
+      if (!agree.checked) { err.textContent = "Please agree to the Terms & Privacy Policy."; return; }
+    }
     submit.disabled = true;
     try {
       if (mode === "in") await store.signIn(uname, pass.value);
-      else await store.signUp(uname, pass.value, email.value.trim());
+      else await store.signUp(uname, pass.value, email.value.trim(), dob.value);
     } catch (e) { err.textContent = friendlyAuthError(e); submit.disabled = false; }
   }
   submit.addEventListener("click", go);
@@ -218,8 +243,11 @@ function renderAuth() {
     ]));
   }
 
+  const footer = el("div", { class: "muted", style: "margin-top:12px",
+    html: "<a href='privacy.html' target='_blank' class='link'>Privacy</a> &nbsp;·&nbsp; <a href='terms.html' target='_blank' class='link'>Terms</a>" });
+
   screen.innerHTML = "";
-  screen.append(el("div", { class: "center" }, [el("div", {}, [card, ...extras])]));
+  screen.append(el("div", { class: "center" }, [el("div", {}, [card, ...extras, footer])]));
 }
 
 /* unlock screen — fresh device with no cached key needs the password */
@@ -235,7 +263,7 @@ function renderUnlock(user) {
   btn.onclick = go;
   pass.addEventListener("keydown", e => e.key === "Enter" && go());
   const card = el("div", { class: "card" }, [
-    el("h1", {}, ["Lustre", el("span", { class: "indev", text: "indev" })]),
+    el("h1", {}, ["Lustre", el("span", { class: "indev", text: "beta " + VERSION, title: "What's new", onclick: openChangelog })]),
     el("div", { class: "tag", text: "Enter your password to unlock your encrypted messages on this device" }),
     el("label", { text: "Password" }), pass,
     err,
@@ -244,6 +272,18 @@ function renderUnlock(user) {
   ]);
   screen.innerHTML = "";
   screen.append(el("div", { class: "center" }, [card]));
+}
+
+/* "What's new" changelog (version pill opens this) */
+function openChangelog() {
+  const body = $("#changelogBody"); body.innerHTML = "";
+  for (const e of CHANGELOG) {
+    body.append(el("div", { class: "sectionhead", text: e.version + "  —  " + e.date }));
+    const ul = el("ul", { class: "changelog-list" });
+    for (const c of e.changes) ul.append(el("li", { text: c }));
+    body.append(ul);
+  }
+  $("#changelogOverlay").classList.add("show");
 }
 
 /* =====================================================================
@@ -261,7 +301,7 @@ function renderApp(user) {
   const sidebar = el("div", { class: "sidebar pinstripe" }, [
     el("div", { class: "brand" }, [
       el("span", { class: "spark" }),
-      el("span", { class: "wordmark" }, ["Lustre", el("span", { class: "indev", text: "indev" })]),
+      el("span", { class: "wordmark" }, ["Lustre", el("span", { class: "indev", text: "beta " + VERSION, title: "What's new", onclick: openChangelog })]),
     ]),
     el("div", { class: "active-line" }, [el("span", { class: "active-dot" }), activeCountEl]),
     el("div", { class: "sidebar-actions" }, [newChatBtn, friendsBtn, settingsBtn]),
@@ -328,7 +368,7 @@ function paintConvList(filter = "") {
         el("div", { class: "conv-last", text: c.lastText || "No messages yet" }),
       ]),
     ]);
-    if (c.unread > 0) row.append(el("div", { class: "badge", text: String(c.unread) }));
+    if (c.unread > 0) row.append(el("div", { class: "newdot", title: "New message" }));
     convList.append(row);
   }
 }
@@ -647,6 +687,10 @@ $("#incomingDecline").onclick = () => {
   incomingInfo = null;
 };
 
+// changelog overlay (wired at top level so it works on auth/unlock screens too)
+$("#changelogClose").onclick = () => $("#changelogOverlay").classList.remove("show");
+$("#changelogOverlay").addEventListener("click", e => { if (e.target === e.currentTarget) e.currentTarget.classList.remove("show"); });
+
 /* =====================================================================
    CHROME (title-bar buttons + modals)
    ===================================================================== */
@@ -688,6 +732,7 @@ function wireChrome() {
   };
   $("#setPfpRemove").onclick = () => { settingsPhoto = null; drawPfpPreview(); clearPfpSel(); };
   $("#setChangePw").onclick = () => $("#pwArea").classList.toggle("hidden");
+  $("#setWhatsNew").onclick = () => { $("#settingsOverlay").classList.remove("show"); openChangelog(); };
   $("#pwSave").onclick = async () => {
     const pw = $("#pwNew").value, errEl = $("#setErr");
     if (pw.length < 6) { errEl.textContent = "Password must be at least 6 characters."; errEl.style.color = ""; return; }

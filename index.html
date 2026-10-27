@@ -94,6 +94,13 @@
           <input class="input" id="pwNew" type="password" placeholder="New password (6+ characters)" />
           <button class="btn blue" id="pwSave" style="width:100%;margin-top:6px">Update password</button>
         </div>
+
+        <div class="sectionhead">About</div>
+        <div class="muted" style="text-align:left">
+          <a href="privacy.html" target="_blank" class="link">Privacy Policy</a> &nbsp;·&nbsp;
+          <a href="terms.html" target="_blank" class="link">Terms of Service</a> &nbsp;·&nbsp;
+          <span class="link" id="setWhatsNew">What's New</span>
+        </div>
       </div>
       <div class="err" id="setErr"></div>
       <div class="row">
@@ -101,6 +108,15 @@
         <button class="btn blue" id="setSave">Save</button>
       </div>
       <div class="muted" id="setMode"></div>
+    </div>
+  </div>
+
+  <!-- ============ CHANGELOG ("What's New") ============ -->
+  <div class="overlay" id="changelogOverlay">
+    <div class="card settings-card">
+      <h1 style="font-size:20px">What's New</h1>
+      <div class="settings-scroll" id="changelogBody"></div>
+      <div class="row"><button class="btn" id="changelogClose">Done</button></div>
     </div>
   </div>
 

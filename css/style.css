@@ -103,6 +103,14 @@ html, body {
   box-shadow: 0 0 4px rgba(70,201,35,.75), inset 0 1px 0 rgba(255,255,255,.5);
 }
 .active-count { font-size: 12px; font-weight: 700; color: #6b7178; text-shadow: 0 1px 0 rgba(255,255,255,.6); }
+
+/* blue "new message" dot on a conversation row */
+.newdot {
+  width: 12px; height: 12px; flex: 0 0 12px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #9fd0ff, #2d9bff 55%, #0a6cff);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 0 4px rgba(10,108,255,.6);
+}
+.conv.active .newdot { background: radial-gradient(circle at 35% 30%, #fff, #cfe3ff 55%, #bcd8ff); box-shadow: inset 0 1px 0 rgba(255,255,255,.8); }
 /* a little glossy gem beside the wordmark */
 .brand .spark {
   width: 20px; height: 20px; border-radius: 6px;
@@ -190,6 +198,10 @@ html, body {
 .pfp-presets { display: flex; flex-wrap: wrap; gap: 7px; }
 .pfp-choice { cursor: pointer; }
 .pfp-choice.sel { outline: 3px solid var(--blue-mid); outline-offset: 1px; }
+
+/* changelog */
+.changelog-list { margin: 2px 0 12px 20px; }
+.changelog-list li { font-size: 13px; color: #444; margin: 4px 0; line-height: 1.35; }
 
 /* sidebar / conversation list */
 .sidebar {

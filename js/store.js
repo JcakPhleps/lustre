@@ -74,7 +74,7 @@ class MockStore {
     const u = (username || "you").replace(/^@/, "");
     this._login({ uid: "me", username: u.toLowerCase(), email: null, name: u });
   }
-  async signUp(username, _pass, email) {
+  async signUp(username, _pass, email, _dob) {
     const u = (username || "you").replace(/^@/, "");
     this._login({ uid: "me", username: u.toLowerCase(), email: email || null, name: u });
   }
@@ -318,14 +318,14 @@ class FirebaseStore {
       await this._handleAuth(cred.user, pass);
     } finally { this._authBusy = false; }
   }
-  async signUp(username, pass, realEmail) {
+  async signUp(username, pass, realEmail, dob) {
     this._authBusy = true;
     try {
       const uname = username.trim().toLowerCase();
       const cred = await this._auth.createUserWithEmailAndPassword(this.auth, this._emailFor(uname), pass);
       await this._auth.updateProfile(cred.user, { displayName: uname });
       await this._fs.setDoc(this._fs.doc(this.db, "users", cred.user.uid),
-        { username: uname, name: uname, email: realEmail || null, createdAt: this._fs.serverTimestamp() });
+        { username: uname, name: uname, email: realEmail || null, dob: dob || null, createdAt: this._fs.serverTimestamp() });
       await this._handleAuth(cred.user, pass);   // generates + stores E2EE keys
     } finally { this._authBusy = false; }
   }
