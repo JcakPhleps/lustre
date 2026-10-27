@@ -321,6 +321,7 @@ function renderApp(user) {
   // keep references
   renderApp._els = { convList, chat, body, search };
 
+  let demoOpened = false;
   store.onConversations(list => {
     // play "receive" when a non-active chat gets a new incoming message
     if (convSeen) {
@@ -339,7 +340,7 @@ function renderApp(user) {
     const ids = new Set(list.map(c => c.id));
     for (const [cid, un] of callWatchers) if (!ids.has(cid)) { try { un(); } catch {} callWatchers.delete(cid); }
     for (const c of list) if (!callWatchers.has(c.id)) callWatchers.set(c.id, calls.listenIncoming(c, onIncomingCall, onCallCancel));
-    if (location.hash === "#demo" && !activeId && convs.length) openConv(convs[0].id);
+    if (location.hash === "#demo" && !demoOpened && !activeId && convs.length) { demoOpened = true; openConv(convs[0].id); }
   });
 
   // friends + requests (live; drives the Friends badge even when the dialog is closed)
@@ -373,6 +374,17 @@ function paintConvList(filter = "") {
   }
 }
 
+// back to the chat list (narrow screens): stop treating the chat as open,
+// so new messages in it light up the blue dot again
+function leaveConv() {
+  if (!activeId) return;
+  store.setViewing(activeId, false);
+  if (msgUnsub) { msgUnsub(); msgUnsub = null; }
+  if (presUnsub) { presUnsub(); presUnsub = null; }
+  activeId = null;
+  paintConvList(renderApp._els.search.value.toLowerCase());
+}
+
 /* =====================================================================
    OPEN A CONVERSATION
    ===================================================================== */
@@ -396,7 +408,7 @@ function openConv(id) {
   const status = el("div", { class: "status", text: conv.online ? "Online" : "" });
   const head = el("div", { class: "chat-head metal" }, [
     el("button", { class: "btn backbtn", text: "‹ Chats",
-      onclick: () => { renderApp._els.body.classList.remove("show-chat"); store.setViewing(id, false); } }),
+      onclick: () => { renderApp._els.body.classList.remove("show-chat"); leaveConv(); } }),
     avatarEl({ uid: conv.type === "dm" ? conv.members[0]?.uid : null, name: conv.name }, { cls: "sm", online: conv.online }),
     el("div", { class: "who" }, [el("div", { class: "name", text: conv.name }), status]),
     el("button", { class: "btn", text: "Call", onclick: () => startCall(conv, false) }),
@@ -468,7 +480,7 @@ function openConv(id) {
       for (const m of added) seenIds.add(m.id);
       const incoming = added.filter(m => !m.mine);
       if (incoming.length) {
-        store.openConversation(id);   // already looking at it — keep the new-message dot off
+        if (!document.hidden) store.openConversation(id);   // looking at it — keep the new-message dot off
         sfx.playReceive();
         if (document.hidden) {
           const m = incoming[incoming.length - 1];
@@ -926,4 +938,5 @@ function scrollBottom(c) { requestAnimationFrame(() => { c.scrollTop = c.scrollH
 window.addEventListener("beforeunload", () => { if (activeId) store.setViewing(activeId, false); });
 document.addEventListener("visibilitychange", () => {
   if (activeId) store.setViewing(activeId, !document.hidden);
+  if (activeId && !document.hidden) store.openConversation(activeId);   // back on the tab → clear its dot
 });
