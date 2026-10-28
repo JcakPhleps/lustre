@@ -19,9 +19,9 @@
       <h1 style="font-size:20px">New Message</h1>
       <div class="tag">Start a direct message or a group</div>
       <label>People (comma-separated usernames)</label>
-      <input class="input" id="newChatPeople" placeholder="alex, sam, jordan" />
+      <input class="input" id="newChatPeople" placeholder="alex, sam, jordan" autocomplete="off" autocapitalize="none" spellcheck="false" />
       <label>Group name <span style="font-weight:400;color:#9aa0a8">(optional)</span></label>
-      <input class="input" id="newChatName" placeholder="Weekend Crew" />
+      <input class="input" id="newChatName" placeholder="Weekend Crew" autocomplete="off" />
       <div class="err" id="newChatErr"></div>
       <div class="row">
         <button class="btn" id="newChatCancel">Cancel</button>
@@ -36,7 +36,7 @@
       <h1 style="font-size:20px">Friends</h1>
       <label>Add a friend by username</label>
       <div style="display:flex;gap:8px;align-items:stretch">
-        <input class="input" id="friendAdd" placeholder="username" style="flex:1" autocapitalize="none" spellcheck="false" />
+        <input class="input" id="friendAdd" type="search" placeholder="e.g. alex" style="flex:1" autocomplete="off" autocapitalize="none" spellcheck="false" />
         <button class="btn blue" id="friendAddBtn">Add</button>
       </div>
       <div class="err" id="friendErr"></div>
@@ -69,13 +69,13 @@
         </div>
         <div class="pfp-presets" id="setPfpPresets"></div>
         <label>Display name</label>
-        <input class="input" id="setName" maxlength="32" />
+        <input class="input" id="setName" maxlength="32" autocomplete="off" />
         <div class="hint" id="setNameHint"></div>
         <label>Username</label>
-        <div class="userfield"><span>@</span><input class="input" id="setUsername" maxlength="20" autocapitalize="none" spellcheck="false" /></div>
+        <div class="userfield"><span>@</span><input class="input" id="setUsername" maxlength="20" autocomplete="off" autocapitalize="none" spellcheck="false" /></div>
         <div class="hint" id="setUsernameHint"></div>
         <label>Bio <span class="opt">(optional)</span></label>
-        <textarea class="input" id="setBio" rows="3" maxlength="160" placeholder="A little about you…"></textarea>
+        <textarea class="input" id="setBio" rows="3" maxlength="160" placeholder="A little about you…" autocomplete="off"></textarea>
         <div class="hint" id="setBioHint"></div>
         <button class="btn" id="setViewCard" style="width:100%;margin-top:10px">View my profile card</button>
 
@@ -101,12 +101,13 @@
 
         <div class="sectionhead">Account</div>
         <label style="margin-top:0">Recovery email <span class="opt">(optional)</span></label>
-        <input class="input" id="setEmail" type="email" placeholder="you@email.com" autocapitalize="none" spellcheck="false" style="margin-bottom:10px" />
+        <input class="input" id="setEmail" type="email" placeholder="you@email.com" autocomplete="off" autocapitalize="none" spellcheck="false" style="margin-bottom:10px" />
         <button class="btn" id="setChangePw" style="width:100%">Change password…</button>
-        <div id="pwArea" class="hidden" style="margin-top:8px">
-          <input class="input" id="pwNew" type="password" placeholder="New password (6+ characters)" />
-          <button class="btn blue" id="pwSave" style="width:100%;margin-top:6px">Update password</button>
-        </div>
+        <form id="pwArea" class="hidden" style="margin-top:8px">
+          <input type="text" id="pwUser" class="hidden" autocomplete="username" tabindex="-1" aria-hidden="true" />
+          <input class="input" id="pwNew" type="password" placeholder="New password (6+ characters)" autocomplete="new-password" />
+          <button class="btn blue" id="pwSave" type="button" style="width:100%;margin-top:6px">Update password</button>
+        </form>
 
         <div class="sectionhead">About</div>
         <div class="muted" style="text-align:left">
