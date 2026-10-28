@@ -18,6 +18,11 @@ const uid = () => Math.random().toString(36).slice(2, 10);
 const initials = (name = "?") =>
   name.trim().split(/\s+/).map(w => w[0]).slice(0, 2).join("").toUpperCase() || "?";
 
+/* ---- Firestore usage (free tier: 50k reads / 20k writes a day) ---- */
+const PRESENCE_EVERY = 2 * 60 * 1000;    // "x active" heartbeat + count refresh
+const ONLINE_WINDOW = 5 * 60 * 1000;     // seen within this long → counts as online
+const MESSAGES_SHOWN = 50;               // messages loaded when a chat opens
+
 /* ---- profile change limits (firestore.rules enforces the same) ---- */
 const WEEK = 7 * 24 * 60 * 60 * 1000;
 export const NAME_CHANGES_PER_WEEK = 3;
@@ -519,7 +524,7 @@ class FirebaseStore {
   async isOnline(id) {
     try {
       const s = await this._fs.getDoc(this._fs.doc(this.db, "presence_global", id));
-      return s.exists() && (s.data().at?.toMillis?.() || 0) >= Date.now() - 65000;
+      return s.exists() && (s.data().at?.toMillis?.() || 0) >= Date.now() - ONLINE_WINDOW;
     } catch { return false; }
   }
   async changePassword(newPass) {
@@ -569,27 +574,41 @@ class FirebaseStore {
     return this._profileCache.get(uid);
   }
 
-  /* ---------------- global presence ("x active") ---------------- */
+  /* ---------------- global presence ("x active") ----------------
+     Kept cheap on purpose (free-tier quota): one heartbeat write every 2 min
+     while the tab is visible, and the count is a single aggregate read every
+     2 min — NOT a live listener on the whole collection, which re-read every
+     doc for every viewer on every heartbeat. */
   startGlobalPresence() {
     if (this._gpStarted) return; this._gpStarted = true;
     const beat = () => {
-      if (!this._user) return;
+      if (!this._user || document.hidden) return;
       this._fs.setDoc(this._fs.doc(this.db, "presence_global", this._user.uid),
         { at: this._fs.serverTimestamp(), name: this._user.name }, { merge: true }).catch(() => {});
     };
     beat();
-    this._gpTimer = setInterval(beat, 30000);
+    this._gpTimer = setInterval(beat, PRESENCE_EVERY);
     document.addEventListener("visibilitychange", () => { if (!document.hidden) beat(); });
     window.addEventListener("beforeunload", () => {
       try { this._fs.deleteDoc(this._fs.doc(this.db, "presence_global", this._user.uid)); } catch {}
     });
   }
   onActiveCount(cb) {
-    return this._fs.onSnapshot(this._fs.collection(this.db, "presence_global"), snap => {
-      const cutoff = Date.now() - 65000; let n = 0;
-      snap.forEach(d => { if ((d.data().at?.toMillis?.() || 0) >= cutoff) n++; });
-      cb(Math.max(n, 1));
-    });
+    let stopped = false;
+    const count = async () => {
+      if (stopped || document.hidden) return;
+      try {
+        const since = this._fs.Timestamp.fromMillis(Date.now() - ONLINE_WINDOW);
+        const q = this._fs.query(this._fs.collection(this.db, "presence_global"), this._fs.where("at", ">=", since));
+        const snap = await this._fs.getCountFromServer(q);
+        cb(Math.max(snap.data().count, 1));
+      } catch {}
+    };
+    count();
+    const t = setInterval(count, PRESENCE_EVERY);
+    const onVis = () => { if (!document.hidden) count(); };
+    document.addEventListener("visibilitychange", onVis);
+    return () => { stopped = true; clearInterval(t); document.removeEventListener("visibilitychange", onVis); };
   }
 
   /* ---------------- friends ---------------- */
@@ -691,6 +710,7 @@ class FirebaseStore {
           lastFrom: v.lastFrom || null,
           unread: (v.unread || {})[this._user.uid] || 0,
         });
+        (this._myUnread ||= {})[d.id] = (v.unread || {})[this._user.uid] || 0;
       }
       list.sort((a, b) => b.lastTs - a.lastTs);
       cb(list);
@@ -724,7 +744,7 @@ class FirebaseStore {
   onMessages(convId, cb) {
     const q = this._fs.query(
       this._fs.collection(this.db, "conversations", convId, "messages"),
-      this._fs.orderBy("ts", "asc"), this._fs.limitToLast(200));
+      this._fs.orderBy("ts", "asc"), this._fs.limitToLast(MESSAGES_SHOWN));
     return this._fs.onSnapshot(q, async snap => {
       const out = [];
       for (const d of snap.docs) {
@@ -809,17 +829,34 @@ class FirebaseStore {
   }
   async setViewing(convId, on) { await this._pres(convId, { viewing: on }); }
   async setTyping(convId, on) { await this._pres(convId, { typing: on }); }
+  // Presence writes are throttled: a change (start/stop typing, open/leave a chat)
+  // writes right away; the same state again only refreshes "at" every 10s, with
+  // one trailing write so a read receipt still lands. (It used to write on every
+  // keystroke and every incoming message.)
   async _pres(convId, patch) {
+    const st = (this._presState ||= {})[convId] ||= { state: {}, at: 0, timer: null };
+    const next = { ...st.state, ...patch };
+    const changed = Object.keys(patch).some(k => st.state[k] !== patch[k]);
+    st.state = next;
+    if (!changed && Date.now() - st.at < 10000) {
+      if (!st.timer) st.timer = setTimeout(() => { st.timer = null; this._presWrite(convId, st); }, 10000 - (Date.now() - st.at));
+      return;
+    }
+    await this._presWrite(convId, st);
+  }
+  async _presWrite(convId, st) {
+    clearTimeout(st.timer); st.timer = null; st.at = Date.now();
     try {
       await this._fs.setDoc(this._fs.doc(this.db, "conversations", convId, "presence", this._user.uid),
-        { name: this._user.name, at: this._fs.serverTimestamp(), ...patch }, { merge: true });
+        { name: this._user.name, at: this._fs.serverTimestamp(), ...st.state }, { merge: true });
     } catch (_) {}
   }
   _presenceHeartbeat() {/* refreshed on view/type; kept simple for indev 1 */}
 
   async openConversation(convId) { await this.markRead(convId); }
   async markRead(convId) {
-    // clear my unread counter and stamp recent messages as read
+    // clear my unread counter (skip the write when it's already 0)
+    if ((this._myUnread || {})[convId] === 0) return;
     try {
       await this._fs.updateDoc(this._fs.doc(this.db, "conversations", convId),
         { [`unread.${this._user.uid}`]: 0 });
