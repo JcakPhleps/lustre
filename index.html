@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <title>Lustre</title>
   <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/aero.css" />
 </head>
 <body class="linen">
   <div id="app">
@@ -73,10 +74,14 @@
         <input class="input" id="setEmail" type="email" placeholder="you@email.com" autocapitalize="none" spellcheck="false" />
 
         <div class="sectionhead">Appearance</div>
+        <label>Style</label>
+        <div class="segmented" id="setTheme"></div>
         <label>Accent color</label>
         <div class="swatches" id="setAccent"></div>
-        <label>Chat wallpaper</label>
-        <div class="swatches" id="setWall"></div>
+        <div id="setWallRow">
+          <label>Chat wallpaper</label>
+          <div class="swatches" id="setWall"></div>
+        </div>
         <label>Text size</label>
         <div class="segmented" id="setSize"></div>
 

@@ -1,0 +1,345 @@
+/* =========================================================================
+   Lustre — Aero mode (Windows 7 Aero / Frutiger Aero)
+   -------------------------------------------------------------------------
+   Turned on by <html data-theme="aero"> (Settings → Appearance → Style).
+   Sky-to-grass wallpaper with floating bubbles, frosted glass panes,
+   glowing title text, Windows 7 buttons, and glossy aqua orbs.
+   Pure CSS like the rest — every rule here is scoped to the aero theme.
+   ========================================================================= */
+
+html[data-theme="aero"] {
+  --font: "Segoe UI", Frutiger, "Frutiger Linotype", "Myriad Pro", "Open Sans", Ubuntu, "Trebuchet MS", sans-serif;
+  --glass: rgba(255,255,255,.38);
+  --glass-strong: rgba(255,255,255,.62);
+  --glass-edge: rgba(255,255,255,.75);
+  --aero-ink: #1b2f45;
+  --aero-sub: #4b6582;
+  --radius-bubble: 16px;
+}
+
+/* ----------------------------------------------------- the wallpaper */
+/* blue sky → aqua horizon → rolling green hill, with sun-glow and light rays */
+html[data-theme="aero"] body {
+  color: var(--aero-ink);
+  background-color: #4fb6ee;
+  background-image:
+    radial-gradient(ellipse 60% 45% at 78% 8%, rgba(255,255,255,.75), rgba(255,255,255,0) 70%),
+    repeating-conic-gradient(from 200deg at 78% -10%, rgba(255,255,255,.10) 0 4deg, rgba(255,255,255,0) 4deg 11deg),
+    radial-gradient(ellipse 95% 38% at 30% 104%, #b9f05a 0 38%, #6cc72b 62%, rgba(78,170,30,0) 63%),
+    radial-gradient(ellipse 80% 30% at 90% 108%, #9be24a 0 45%, #4fae1f 64%, rgba(60,150,20,0) 65%),
+    linear-gradient(#0f6fc9 0%, #3aa3ea 35%, #8fd6fb 62%, #d8f4ff 80%, #eafbff 100%);
+  background-attachment: fixed;
+}
+/* floating soap bubbles drifting up the screen */
+html[data-theme="aero"] body::before {
+  content: ""; position: fixed; inset: -20% 0 0; pointer-events: none; z-index: 0;
+  background-image:
+    radial-gradient(circle at 30% 30%, rgba(255,255,255,.9) 0 3%, rgba(255,255,255,0) 11%),
+    radial-gradient(circle, rgba(255,255,255,0) 0 62%, rgba(255,255,255,.55) 68%, rgba(255,255,255,0) 72%),
+    radial-gradient(circle at 30% 30%, rgba(255,255,255,.85) 0 3%, rgba(255,255,255,0) 11%),
+    radial-gradient(circle, rgba(255,255,255,0) 0 62%, rgba(255,255,255,.5) 68%, rgba(255,255,255,0) 72%),
+    radial-gradient(circle at 30% 30%, rgba(255,255,255,.85) 0 3%, rgba(255,255,255,0) 11%),
+    radial-gradient(circle, rgba(255,255,255,0) 0 62%, rgba(255,255,255,.45) 68%, rgba(255,255,255,0) 72%);
+  background-repeat: no-repeat;
+  background-size: 90px 90px, 90px 90px, 54px 54px, 54px 54px, 130px 130px, 130px 130px;
+  background-position: 12% 80%, 12% 80%, 86% 64%, 86% 64%, 62% 96%, 62% 96%;
+  animation: aero-float 26s linear infinite;
+  opacity: .9;
+}
+@keyframes aero-float {
+  from { transform: translateY(0); }
+  to   { transform: translateY(-18%); }
+}
+@media (prefers-reduced-motion: reduce) { html[data-theme="aero"] body::before { animation: none; } }
+html[data-theme="aero"] #app { position: relative; z-index: 1; }
+
+/* ----------------------------------------------------- frosted glass */
+html[data-theme="aero"] .pinstripe,
+html[data-theme="aero"] .metal {
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  backdrop-filter: blur(14px) saturate(160%);
+}
+/* Aero title bar: glass with a bright sheen across the top half */
+html[data-theme="aero"] .metal {
+  background:
+    linear-gradient(rgba(255,255,255,.62), rgba(255,255,255,.28) 50%, rgba(200,230,255,.18) 51%, rgba(170,215,250,.30));
+  border-bottom: 1px solid rgba(40,80,130,.45);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.9), inset 0 -1px 0 rgba(255,255,255,.35), 0 1px 6px rgba(0,40,90,.18);
+}
+html[data-theme="aero"] .composer.metal { border-top: 1px solid rgba(40,80,130,.45); border-bottom: 0; }
+html[data-theme="aero"] .sidebar {
+  border-right: 1px solid rgba(255,255,255,.7);
+  box-shadow: 1px 0 0 rgba(30,70,120,.35), 4px 0 18px rgba(0,40,90,.12);
+}
+html[data-theme="aero"] .sidebar .search,
+html[data-theme="aero"] .sidebar-actions,
+html[data-theme="aero"] .active-line { border-bottom-color: rgba(255,255,255,.5); box-shadow: 0 1px 0 rgba(30,70,120,.12); }
+
+/* the classic Aero glowing caption text */
+html[data-theme="aero"] .chat-head .name,
+html[data-theme="aero"] .card h1 {
+  color: #10223a;
+  text-shadow: 0 0 10px #fff, 0 0 4px #fff, 0 0 1px #fff;
+}
+html[data-theme="aero"] .chat-head .status { color: var(--aero-sub); text-shadow: 0 0 6px #fff; }
+html[data-theme="aero"] .chat-head .status.here { color: #1f8a12; }
+
+/* ----------------------------------------------------- wordmark */
+html[data-theme="aero"] .brand {
+  color: transparent;
+  background: linear-gradient(#5fd0ff, #0a78d4 55%, #045aa8);
+  -webkit-background-clip: text; background-clip: text;
+  text-shadow: none;
+  filter: drop-shadow(0 0 6px rgba(255,255,255,.95)) drop-shadow(0 1px 1px rgba(0,50,110,.35));
+}
+html[data-theme="aero"] .brand .indev { -webkit-text-fill-color: #b07d16; filter: none; }
+/* glossy aqua orb (the Windows 7 start-orb vibe) */
+html[data-theme="aero"] .brand .spark {
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse 70% 45% at 50% 22%, rgba(255,255,255,.95), rgba(255,255,255,0) 70%),
+    radial-gradient(circle at 50% 75%, #8ff0ff, #18a6e8 55%, #075ea8);
+  box-shadow: 0 0 8px rgba(80,200,255,.8), inset 0 -2px 4px rgba(0,40,90,.35), 0 1px 2px rgba(0,30,70,.4);
+}
+html[data-theme="aero"] .active-count { color: var(--aero-sub); text-shadow: 0 0 6px #fff; }
+
+/* ----------------------------------------------------- conversation list */
+html[data-theme="aero"] .conv {
+  margin: 2px 6px; padding: 8px 9px;
+  border: 1px solid transparent; border-radius: 4px; box-shadow: none;
+}
+html[data-theme="aero"] .conv:hover {
+  background: linear-gradient(rgba(250,253,255,.7), rgba(225,242,255,.55));
+  border-color: rgba(140,190,240,.8);
+}
+/* Windows 7 selection: pale blue gradient, crisp blue border, dark text */
+html[data-theme="aero"] .conv.active {
+  background: linear-gradient(#e6f3ff, #c7e3fd);
+  border-color: #7da2ce;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.8);
+}
+html[data-theme="aero"] .conv-name,
+html[data-theme="aero"] .conv.active .conv-name { color: var(--aero-ink); text-shadow: 0 0 6px rgba(255,255,255,.9); }
+html[data-theme="aero"] .conv-last,
+html[data-theme="aero"] .conv-time,
+html[data-theme="aero"] .conv.active .conv-last,
+html[data-theme="aero"] .conv.active .conv-time { color: var(--aero-sub); text-shadow: none; }
+html[data-theme="aero"] .conv.active .newdot {
+  background: radial-gradient(circle at 35% 30%, #9fd0ff, #2d9bff 55%, #0a6cff);
+}
+
+/* avatars: user tile in a glassy white frame */
+html[data-theme="aero"] .avatar {
+  border-radius: 6px;
+  background: linear-gradient(#7fc8f5, #2f88d0);
+  box-shadow: 0 0 0 2px rgba(255,255,255,.95), 0 0 0 3px rgba(60,110,170,.45), 0 2px 6px rgba(0,40,90,.3);
+}
+html[data-theme="aero"] .avatar.sm { border-radius: 5px; }
+html[data-theme="aero"] .avatar.lg { border-radius: 10px; }
+
+/* ----------------------------------------------------- transcript */
+html[data-theme="aero"] .messages {
+  background: rgba(255,255,255,.22);
+  -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+}
+html[data-theme="aero"] .daystamp,
+html[data-theme="aero"] .receipt,
+html[data-theme="aero"] .edited,
+html[data-theme="aero"] .sender { color: #20456b; text-shadow: 0 0 6px #fff, 0 0 2px #fff; }
+html[data-theme="aero"] .chat > .center > div { color: #20456b !important; text-shadow: 0 0 8px #fff, 0 0 3px #fff !important; }
+
+/* bubbles: glass orbs instead of tailed gel (the tail carve needs a flat backdrop) */
+html[data-theme="aero"] .bubble.them::after,
+html[data-theme="aero"] .bubble.me::after { display: none; }
+html[data-theme="aero"] .bubble.them::before,
+html[data-theme="aero"] .bubble.me::before {
+  /* reused as the glossy highlight across the top of the bubble */
+  left: 3px; right: 3px; top: 2px; bottom: auto; width: auto; height: 46%;
+  border-radius: calc(var(--radius-bubble) - 3px) calc(var(--radius-bubble) - 3px) 50% 50% / calc(var(--radius-bubble) - 3px) calc(var(--radius-bubble) - 3px) 8px 8px;
+  background: linear-gradient(rgba(255,255,255,.75), rgba(255,255,255,.08));
+  pointer-events: none;
+}
+html[data-theme="aero"] .bubble.media::before { display: none; }
+html[data-theme="aero"] .bubble.them {
+  background: rgba(255,255,255,.72);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,.95);
+  color: #10223a;
+  box-shadow: 0 0 0 1px rgba(80,130,190,.35), 0 3px 10px rgba(0,50,110,.18);
+}
+html[data-theme="aero"] .bubble.me {
+  background:
+    radial-gradient(ellipse 90% 60% at 50% 110%, rgba(140,240,255,.55), rgba(140,240,255,0) 70%),
+    linear-gradient(var(--blue-top), var(--blue-mid) 55%, var(--blue-bot-ok));
+  border: 1px solid rgba(0,60,130,.55);
+  color: #fff; text-shadow: 0 1px 2px rgba(0,30,80,.45);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.35), 0 3px 10px rgba(0,60,140,.3);
+}
+html[data-theme="aero"] .bubble.me .voice .play { color: var(--blue-bot-ok); }
+html[data-theme="aero"] .unsent { color: #355a80; border-color: rgba(30,80,140,.35); background: rgba(255,255,255,.35); text-shadow: none; }
+html[data-theme="aero"] .typing i { background: #3d8fd6; }
+
+/* ----------------------------------------------------- composer */
+html[data-theme="aero"] .composer .field {
+  border-radius: 3px; background: #fff;
+  border: 1px solid #abadb3; border-top-color: #8e9096;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,.08);
+}
+html[data-theme="aero"] .composer .field:focus-within { border-color: #3d7bad; border-top-color: #2c628b; }
+html[data-theme="aero"] .editbar {
+  background: linear-gradient(rgba(240,248,255,.85), rgba(210,232,252,.85));
+  border-top-color: rgba(40,80,130,.35); color: var(--aero-ink);
+}
+
+/* ----------------------------------------------------- Windows 7 buttons */
+html[data-theme="aero"] .btn,
+html[data-theme="aero"] .iconbtn,
+html[data-theme="aero"] .msgmore {
+  font-family: var(--font); font-weight: 400; color: #000; text-shadow: none;
+  border: 1px solid #707070; border-radius: 3px;
+  background: linear-gradient(#f2f2f2, #ebebeb 49%, #dddddd 50%, #cfcfcf);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.8);
+  transition: background .15s, border-color .15s, box-shadow .15s;
+}
+html[data-theme="aero"] .btn:hover,
+html[data-theme="aero"] .iconbtn:hover,
+html[data-theme="aero"] .msgmore:hover {
+  border-color: #3c7fb1;
+  background: linear-gradient(#eaf6fd, #d9f0fc 49%, #bee6fd 50%, #a7d9f5);
+}
+html[data-theme="aero"] .btn:active {
+  border-color: #2c628b;
+  background: linear-gradient(#e5f4fc, #c4e5f6 49%, #98d1ef 50%, #68b3db);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,.25);
+}
+html[data-theme="aero"] .msgmore { border-radius: 50%; }
+/* primary: glossy aqua gel */
+html[data-theme="aero"] .btn.blue {
+  color: #fff; text-shadow: 0 1px 2px rgba(0,30,80,.5); font-weight: 600;
+  border-color: #1c4f86;
+  background:
+    linear-gradient(rgba(255,255,255,.55), rgba(255,255,255,.12) 49%, rgba(255,255,255,0) 50%),
+    linear-gradient(var(--blue-top), var(--blue-mid) 50%, var(--blue-bot-ok));
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.35), 0 0 6px rgba(60,170,255,.45);
+}
+html[data-theme="aero"] .btn.blue:hover { box-shadow: inset 0 0 0 1px rgba(255,255,255,.45), 0 0 10px rgba(60,190,255,.85); }
+html[data-theme="aero"] .btn.green {
+  color: #fff; text-shadow: 0 1px 2px rgba(0,60,0,.5); font-weight: 600; border-color: #2c6b14;
+  background:
+    linear-gradient(rgba(255,255,255,.5), rgba(255,255,255,.1) 49%, rgba(255,255,255,0) 50%),
+    linear-gradient(#8fe05a, #4fb52a 50%, #2f8f17);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.35), 0 0 6px rgba(90,200,60,.45);
+}
+html[data-theme="aero"] .btn.red {
+  color: #fff; text-shadow: 0 1px 2px rgba(80,0,0,.5); font-weight: 600; border-color: #7d1212;
+  background:
+    linear-gradient(rgba(255,255,255,.5), rgba(255,255,255,.1) 49%, rgba(255,255,255,0) 50%),
+    linear-gradient(#f2786b, #d2382a 50%, #a71d14);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.3);
+}
+/* the Windows 7 close-button red on hover for the window ✕ */
+html[data-theme="aero"] .lightbox-bar button.btn:hover {
+  color: #fff; border-color: #6e1a12;
+  background: linear-gradient(#e9a99c, #d4705f 49%, #c4392a 50%, #d1584a);
+}
+
+/* ----------------------------------------------------- inputs */
+html[data-theme="aero"] .input {
+  font-family: var(--font); border-radius: 2px; background: #fff;
+  border: 1px solid #abadb3; border-top-color: #8e9096;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,.06);
+}
+html[data-theme="aero"] .input:hover { border-color: #7eb4ea; border-top-color: #5794bf; }
+html[data-theme="aero"] .input:focus { border-color: #569de5; border-top-color: #3d7bad; }
+
+/* segmented control → Windows 7 toolbar buttons */
+html[data-theme="aero"] .segmented { border: 1px solid #707070; border-radius: 3px; box-shadow: none; }
+html[data-theme="aero"] .segmented button {
+  font-family: var(--font); font-weight: 400; color: #000; text-shadow: none;
+  border-left-color: #a0a0a0;
+  background: linear-gradient(#f2f2f2, #ebebeb 49%, #dddddd 50%, #cfcfcf);
+}
+html[data-theme="aero"] .segmented button:hover { background: linear-gradient(#eaf6fd, #d9f0fc 49%, #bee6fd 50%, #a7d9f5); }
+html[data-theme="aero"] .segmented button.sel {
+  color: #fff; text-shadow: 0 1px 2px rgba(0,30,80,.5);
+  background:
+    linear-gradient(rgba(255,255,255,.5), rgba(255,255,255,.1) 49%, rgba(255,255,255,0) 50%),
+    linear-gradient(var(--blue-top), var(--blue-mid) 50%, var(--blue-bot-ok));
+}
+
+/* ----------------------------------------------------- windows (cards / dialogs) */
+html[data-theme="aero"] .overlay {
+  background: rgba(10,40,80,.28);
+  -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px);
+}
+/* an Aero window: thick frosted frame around a light content area */
+html[data-theme="aero"] .card {
+  border-radius: 8px;
+  border: 1px solid rgba(0,0,0,.55);
+  background:
+    linear-gradient(rgba(255,255,255,.55), rgba(255,255,255,.2) 46px, rgba(255,255,255,.12) 47px, rgba(255,255,255,.06)),
+    rgba(160,205,240,.45);
+  -webkit-backdrop-filter: blur(18px) saturate(170%);
+  backdrop-filter: blur(18px) saturate(170%);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.65), 0 12px 40px rgba(0,30,70,.45);
+  padding: 14px 16px 16px;
+}
+html[data-theme="aero"] .card h1 { font-weight: 400; letter-spacing: 0; text-align: left; margin: 0 0 10px; }
+html[data-theme="aero"] .card .tag { color: #24456a; text-shadow: 0 0 6px #fff; text-align: left; }
+html[data-theme="aero"] .card label,
+html[data-theme="aero"] .sectionhead { color: #10223a; text-shadow: 0 0 6px rgba(255,255,255,.9); }
+/* inner white client area so settings stay readable on the glass */
+html[data-theme="aero"] .settings-scroll {
+  background: rgba(255,255,255,.88); border: 1px solid rgba(60,100,150,.45); border-radius: 4px;
+  padding: 4px 12px 12px;
+}
+html[data-theme="aero"] .toggle { color: #10223a; }
+html[data-theme="aero"] .card .muted { color: #24456a; text-shadow: 0 0 6px #fff; }
+html[data-theme="aero"] .settings-scroll .muted { text-shadow: none; }
+html[data-theme="aero"] .friend-row {
+  border-radius: 4px; border-color: rgba(120,160,210,.6);
+  background: linear-gradient(rgba(255,255,255,.95), rgba(236,245,253,.9));
+}
+html[data-theme="aero"] .err { text-shadow: 0 0 6px #fff; }
+html[data-theme="aero"] #setWallRow { display: none; }   /* the glass replaces the wallpaper */
+
+/* ----------------------------------------------------- menus & popups */
+/* Windows 7 context menu: light panel, icon gutter, rounded blue hover */
+html[data-theme="aero"] .msgmenu,
+html[data-theme="aero"] .suggest {
+  border-radius: 0; border: 1px solid #979797; padding: 2px;
+  background: linear-gradient(90deg, #f1f1f1 0 26px, #e2e3e3 26px 27px, #fff 27px 28px, #f5f5f5 28px);
+  box-shadow: 2px 2px 4px rgba(0,0,0,.3);
+}
+html[data-theme="aero"] .suggest { background: #fff; }
+html[data-theme="aero"] .msgmenu button { font-family: var(--font); padding: 5px 16px 5px 34px; border: 1px solid transparent; border-radius: 3px; }
+html[data-theme="aero"] .msgmenu button:hover,
+html[data-theme="aero"] .suggest-item:hover,
+html[data-theme="aero"] .suggest-item.sel {
+  color: #000;
+  background: linear-gradient(#f2f8fe, #dcebfc);
+  border-color: #aecff7;
+}
+html[data-theme="aero"] .suggest-item { border: 1px solid transparent; border-radius: 3px; }
+html[data-theme="aero"] .msgmenu button.danger:hover { color: #c00; }
+
+/* ----------------------------------------------------- calls */
+html[data-theme="aero"] .callstage { background: radial-gradient(ellipse at 50% 30%, #1d5f9a, #071c33 75%); }
+html[data-theme="aero"] .callbar {
+  background: linear-gradient(rgba(255,255,255,.22), rgba(255,255,255,.06) 50%, rgba(0,0,0,.15) 51%, rgba(0,0,0,.35));
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  border-top: 1px solid rgba(255,255,255,.35);
+}
+html[data-theme="aero"] .callbar .cbtn { font-family: var(--font); border-radius: 22px; }
+
+/* ----------------------------------------------------- scrollbars */
+html[data-theme="aero"] ::-webkit-scrollbar-thumb {
+  background: linear-gradient(90deg, #eef7fe, #c9e4fa); border: 1px solid #8eb4d8; border-radius: 3px;
+}
+
+/* ----------------------------------------------------- phones */
+@media (max-width: 720px) {
+  /* the chat slides over the sidebar — give it its own glass so they don't mix */
+  html[data-theme="aero"] .chat { background: rgba(120,190,240,.35); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
+}

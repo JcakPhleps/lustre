@@ -5,6 +5,10 @@
    ========================================================================= */
 
 export const CHANGELOG = [
+  { version: "v1.4", date: "2026-10-28", changes: [
+    "Aero mode — a Windows 7 / Frutiger Aero look with frosted glass, sky and bubbles (Settings → Appearance → Style)",
+    "Aero sound pack — water-drop bloops and glassy chimes",
+  ]},
   { version: "v1.3", date: "2026-10-28", changes: [
     "Name suggestions pop up as you type in New Message and Add Friend",
   ]},

@@ -123,6 +123,7 @@ const prefs = {
   enter: prefGet("enter", "1") === "1",
   receipts: prefGet("receipts", "1") === "1",
   notify: prefGet("notify", "0") === "1",
+  theme: prefGet("theme", document.documentElement.dataset.defaultTheme || "skeuo"),   // "skeuo" | "aero"
 };
 function notify(title, body, tag) {
   if (!prefs.notify || typeof Notification === "undefined" || Notification.permission !== "granted") return;
@@ -138,6 +139,7 @@ function applyPrefs() {
   r.setProperty("--blue-top", a[0]); r.setProperty("--blue-mid", a[1]); r.setProperty("--blue-bot-ok", a[2]);
   r.setProperty("--linen", WALLS[prefs.wall] || WALLS.Linen);
   r.setProperty("--bubble-size", SIZES[prefs.size] || SIZES.Medium);
+  document.documentElement.dataset.theme = prefs.theme === "aero" ? "aero" : "skeuo";
 }
 applyPrefs();
 
@@ -1068,8 +1070,17 @@ function openSettings() {
   buildSwatches($("#setAccent"), ACCENTS, prefs.accent, "accent");
   buildSwatches($("#setWall"), WALLS, prefs.wall, "wall");
   buildSegmented($("#setSize"), ["Small", "Medium", "Large"], prefs.size, v => { prefs.size = v; prefSet("size", v); applyPrefs(); });
-  buildSegmented($("#setPack"), ["MSN", "Classic"], sfx.getPack() === "classic" ? "Classic" : "MSN",
-    v => sfx.setPack(v === "Classic" ? "classic" : "msn"));
+  const PACKS = { MSN: "msn", Classic: "classic", Aero: "aero" };
+  const buildPacks = () => buildSegmented($("#setPack"), Object.keys(PACKS),
+    Object.keys(PACKS).find(k => PACKS[k] === sfx.getPack()) || "MSN", v => sfx.setPack(PACKS[v]));
+  buildPacks();
+  // switching style also switches to its matching sound pack (can be changed after)
+  buildSegmented($("#setTheme"), ["Skeuomorphic", "Aero"], prefs.theme === "aero" ? "Aero" : "Skeuomorphic", v => {
+    prefs.theme = v === "Aero" ? "aero" : "skeuo"; prefSet("theme", prefs.theme); applyPrefs();
+    if (prefs.theme === "aero" && sfx.getPack() !== "aero") sfx.setPack("aero");
+    if (prefs.theme === "skeuo" && sfx.getPack() === "aero") sfx.setPack("msn");
+    buildPacks();
+  });
   const enter = $("#setEnter"); enter.checked = prefs.enter;
   enter.onchange = () => { prefs.enter = enter.checked; prefSet("enter", enter.checked ? "1" : "0"); };
   const rec = $("#setReceipts"); rec.checked = prefs.receipts;
