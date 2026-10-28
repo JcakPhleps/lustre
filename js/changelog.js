@@ -5,6 +5,12 @@
    ========================================================================= */
 
 export const CHANGELOG = [
+  { version: "v1.2", date: "2026-10-27", changes: [
+    "Edit and unsend your messages — right-click, long-press, or the ⋯ button",
+    "Tap a photo to view it full-size (and save it)",
+    "Blue new-message dot now shows up reliably",
+    "Message box fits on small phone screens",
+  ]},
   { version: "v1.1", date: "2026-10-26", changes: [
     "End-to-end encryption for all messages, media, and previews",
     "Profile pictures — built-in presets and custom uploads",

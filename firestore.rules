@@ -41,7 +41,11 @@ service cloud.firestore {
         allow read:   if isMember(get(/databases/$(database)/documents/conversations/$(cid)));
         allow create: if isMember(get(/databases/$(database)/documents/conversations/$(cid)))
                       && request.resource.data.from.uid == request.auth.uid;
-        allow update: if isMember(get(/databases/$(database)/documents/conversations/$(cid))); // read receipts
+        // edit / unsend: only the sender, and they can't change who sent it or when
+        allow update: if isMember(get(/databases/$(database)/documents/conversations/$(cid)))
+                      && resource.data.from.uid == request.auth.uid
+                      && request.resource.data.from == resource.data.from
+                      && request.resource.data.ts == resource.data.ts;
       }
 
       // presence ("I'm here" / typing) and call signalling: members only

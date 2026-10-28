@@ -1,6 +1,12 @@
 # Lustre — Changelog
 
-Current version: **v1.1**
+Current version: **v1.2**
+
+## v1.2 — 2026-10-27
+- Edit and unsend your messages — right-click, long-press, or the ⋯ button
+- Tap a photo to view it full-size (and save it)
+- Blue new-message dot now shows up reliably
+- Message box fits on small phone screens
 
 ## v1.1 — 2026-10-26
 - End-to-end encryption for all messages, media, and previews
