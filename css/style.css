@@ -84,25 +84,12 @@ html, body {
 /* ---- sidebar brand (the Lustre wordmark) ---- */
 .brand {
   display: flex; align-items: center; justify-content: center; gap: 8px;
-  padding: 16px 10px 2px;
+  padding: 16px 10px 12px;
   font-size: 30px; font-weight: 800; letter-spacing: -.5px;
   color: #4a4e57;
   text-shadow: 0 1px 0 rgba(255,255,255,.9), 0 2px 4px rgba(0,0,0,.12);
 }
 
-/* "x active" counter under the wordmark */
-.active-line {
-  display: flex; align-items: center; justify-content: center; gap: 6px;
-  padding: 2px 0 10px;
-  border-bottom: 1px solid rgba(0,0,0,.1);
-  box-shadow: 0 1px 0 rgba(255,255,255,.55);
-}
-.active-dot {
-  width: 9px; height: 9px; border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #b6ff7a, #46c923 60%, #2f9c16);
-  box-shadow: 0 0 4px rgba(70,201,35,.75), inset 0 1px 0 rgba(255,255,255,.5);
-}
-.active-count { font-size: 12px; font-weight: 700; color: #6b7178; text-shadow: 0 1px 0 rgba(255,255,255,.6); }
 
 /* blue "new message" dot on a conversation row */
 .newdot {

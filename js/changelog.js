@@ -5,6 +5,11 @@
    ========================================================================= */
 
 export const CHANGELOG = [
+  { version: "Beta 2.2", date: "2026-10-28", changes: [
+    "Much lighter on the server — typing, read receipts, and online status check in far less often",
+    "Removed the “x active” counter",
+    "Chats open with your latest 50 messages",
+  ]},
   { version: "Beta 2.1", date: "2026-10-28", changes: [
     "Profile cards — tap someone’s picture or name to see their bio, @username, and whether they’re online",
     "Settings → Profile: write a bio, change your username (once a week) and display name (3 times a week)",

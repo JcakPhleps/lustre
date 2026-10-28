@@ -75,8 +75,7 @@ html[data-theme="aero"] .sidebar {
   box-shadow: 1px 0 0 rgba(0,0,0,.45), 4px 0 18px rgba(0,0,0,.25);
 }
 html[data-theme="aero"] .sidebar .search,
-html[data-theme="aero"] .sidebar-actions,
-html[data-theme="aero"] .active-line { border-bottom-color: rgba(0,0,0,.35); box-shadow: 0 1px 0 rgba(255,255,255,.1); }
+html[data-theme="aero"] .sidebar-actions { border-bottom-color: rgba(0,0,0,.35); box-shadow: 0 1px 0 rgba(255,255,255,.1); }
 
 /* the classic Aero glowing caption text */
 html[data-theme="aero"] .card h1 {
@@ -104,7 +103,6 @@ html[data-theme="aero"] .brand .spark {
     radial-gradient(circle at 50% 75%, #8ff0ff, #18a6e8 55%, #075ea8);
   box-shadow: 0 0 8px rgba(80,200,255,.8), inset 0 -2px 4px rgba(0,40,90,.35), 0 1px 2px rgba(0,30,70,.4);
 }
-html[data-theme="aero"] .active-count { color: var(--aero-light-sub); text-shadow: var(--aero-halo); }
 
 /* ----------------------------------------------------- conversation list */
 html[data-theme="aero"] .conv {

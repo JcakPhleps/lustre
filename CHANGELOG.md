@@ -1,6 +1,11 @@
 # Lustre — Changelog
 
-Current version: **Beta 2.1**
+Current version: **Beta 2.2**
+
+## Beta 2.2 — 2026-10-28
+- Much lighter on the server — typing, read receipts, and online status check in far less often
+- Removed the “x active” counter
+- Chats open with your latest 50 messages
 
 ## Beta 2.1 — 2026-10-28
 - Profile cards — tap someone’s picture or name to see their bio, @username, and whether they’re online

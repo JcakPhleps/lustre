@@ -301,19 +301,16 @@ function renderApp(user) {
   friendsBadgeEl = el("span", { class: "reqbadge hidden" });
   const friendsBtn = el("button", { class: "btn", onclick: openFriends }, ["Friends", friendsBadgeEl]);
   const settingsBtn = el("button", { class: "btn", text: "Settings", onclick: openSettings });
-  const activeCountEl = el("span", { class: "active-count", text: "…" });
   const sidebar = el("div", { class: "sidebar pinstripe" }, [
     el("div", { class: "brand" }, [
       el("span", { class: "spark" }),
       el("span", { class: "wordmark" }, ["Lustre", el("span", { class: "indev", text: VERSION_LABEL, title: "What's new", onclick: openChangelog })]),
     ]),
-    el("div", { class: "active-line" }, [el("span", { class: "active-dot" }), activeCountEl]),
     el("div", { class: "sidebar-actions" }, [newChatBtn, friendsBtn, settingsBtn]),
     el("div", { class: "search" }, [search]),
     convList,
   ]);
   store.startGlobalPresence();
-  store.onActiveCount(n => { activeCountEl.textContent = n + " active"; });
 
   const chat = el("div", { class: "chat" }, [
     el("div", { class: "center", html: "<div style='color:#6c6660;text-shadow:0 1px 0 rgba(255,255,255,.5)'>Pick a conversation, or start a new one.</div>" }),

@@ -19,8 +19,8 @@ const initials = (name = "?") =>
   name.trim().split(/\s+/).map(w => w[0]).slice(0, 2).join("").toUpperCase() || "?";
 
 /* ---- Firestore usage (free tier: 50k reads / 20k writes a day) ---- */
-const PRESENCE_EVERY = 2 * 60 * 1000;    // "x active" heartbeat + count refresh
-const ONLINE_WINDOW = 5 * 60 * 1000;     // seen within this long → counts as online
+const PRESENCE_EVERY = 2 * 60 * 1000;    // online-status heartbeat
+const ONLINE_WINDOW = 5 * 60 * 1000;     // heartbeat within this long → shown as online
 const MESSAGES_SHOWN = 50;               // messages loaded when a chat opens
 
 /* ---- profile change limits (firestore.rules enforces the same) ---- */
@@ -153,7 +153,6 @@ class MockStore {
   async processAvatar(file) { return await resizeToDataURL(file, 160, 0.82); }
   async getProfile() { return {}; }
   startGlobalPresence() {}
-  onActiveCount(cb) { cb(1); return () => {}; }
 
   /* friends (demo: adding a friend just adds them instantly) */
   onFriendRequests(cb) { cb([]); return () => {}; }
@@ -574,11 +573,10 @@ class FirebaseStore {
     return this._profileCache.get(uid);
   }
 
-  /* ---------------- global presence ("x active") ----------------
+  /* ---------------- global presence (online status on profile cards) ----------------
      Kept cheap on purpose (free-tier quota): one heartbeat write every 2 min
-     while the tab is visible, and the count is a single aggregate read every
-     2 min — NOT a live listener on the whole collection, which re-read every
-     doc for every viewer on every heartbeat. */
+     while the tab is visible, and nothing listens to the collection — profile
+     cards read one person's doc when opened. */
   startGlobalPresence() {
     if (this._gpStarted) return; this._gpStarted = true;
     const beat = () => {
@@ -592,23 +590,6 @@ class FirebaseStore {
     window.addEventListener("beforeunload", () => {
       try { this._fs.deleteDoc(this._fs.doc(this.db, "presence_global", this._user.uid)); } catch {}
     });
-  }
-  onActiveCount(cb) {
-    let stopped = false;
-    const count = async () => {
-      if (stopped || document.hidden) return;
-      try {
-        const since = this._fs.Timestamp.fromMillis(Date.now() - ONLINE_WINDOW);
-        const q = this._fs.query(this._fs.collection(this.db, "presence_global"), this._fs.where("at", ">=", since));
-        const snap = await this._fs.getCountFromServer(q);
-        cb(Math.max(snap.data().count, 1));
-      } catch {}
-    };
-    count();
-    const t = setInterval(count, PRESENCE_EVERY);
-    const onVis = () => { if (!document.hidden) count(); };
-    document.addEventListener("visibilitychange", onVis);
-    return () => { stopped = true; clearInterval(t); document.removeEventListener("visibilitychange", onVis); };
   }
 
   /* ---------------- friends ---------------- */
