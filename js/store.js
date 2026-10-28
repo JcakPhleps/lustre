@@ -236,12 +236,12 @@ class MockStore {
   }
   _emitMsgs(convId) { (this._msgCbs[convId] || []).forEach(cb => cb(this._msgs[convId] || [])); }
 
-  async sendMessage(convId, { text, image, audio }) {
+  async sendMessage(convId, { text, image, audio, gif }) {
     const conv = this._convs.find(c => c.id === convId);
     const msg = { id: uid(), from: { uid: "me", name: this._user.name },
-      text: text || "", image: image || null, audio: audio || null, ts: now(), mine: true, readBy: [] };
+      text: text || "", image: image || null, audio: audio || null, gif: gif || null, ts: now(), mine: true, readBy: [] };
     (this._msgs[convId] ||= []).push(msg);
-    conv.lastText = text || (image ? "Photo" : audio ? "Voice message" : "");
+    conv.lastText = text || (image ? "Photo" : audio ? "Voice message" : gif ? "GIF" : "");
     conv.lastTs = msg.ts; conv.lastFrom = "me";
     this._emitMsgs(convId); this._emitConvs();
     this._simulateReply(conv, msg);
@@ -254,7 +254,7 @@ class MockStore {
   }
   async unsendMessage(convId, msgId) {
     const list = this._msgs[convId] || [], m = list.find(m => m.id === msgId); if (!m) return;
-    Object.assign(m, { unsent: true, text: "", image: null, audio: null });
+    Object.assign(m, { unsent: true, text: "", image: null, audio: null, gif: null });
     if (list[list.length - 1] === m) this._convs.find(c => c.id === convId).lastText = "Message unsent";
     this._emitMsgs(convId); this._emitConvs();
   }
@@ -737,7 +737,7 @@ class FirebaseStore {
           const dec = await this._decrypt(v.enc, v.from?.uid);
           if (dec === null) out.push({ ...base, text: "🔒 Can’t decrypt this message", image: null, audio: null });
           else { let c = {}; try { c = JSON.parse(dec); } catch {}
-            out.push({ ...base, text: c.text || "", image: c.image || null, audio: c.audio || null }); }
+            out.push({ ...base, text: c.text || "", image: c.image || null, audio: c.audio || null, gif: c.gif || null }); }
         } else {
           out.push({ ...base, text: v.text || "", image: v.image || null, audio: v.audio || null }); // legacy
         }
@@ -746,16 +746,16 @@ class FirebaseStore {
     });
   }
 
-  async sendMessage(convId, { text, image, audio }) {
+  async sendMessage(convId, { text, image, audio, gif }) {
     if (!this._privKey) throw new Error("Your messages are locked — sign in again to unlock encryption.");
     const from = { uid: this._user.uid, name: this._user.name };
     const members = await this._membersFor(convId);
-    const content = JSON.stringify({ text: text || "", image: image || null, audio: audio || null });
+    const content = JSON.stringify({ text: text || "", image: image || null, audio: audio || null, gif: gif || null });
     const enc = await E2E.encryptMessage(content, members, this._privKey);
-    const kind = image ? "image" : audio ? "audio" : "text";
+    const kind = image ? "image" : audio ? "audio" : gif ? "gif" : "text";
     await this._fs.addDoc(this._fs.collection(this.db, "conversations", convId, "messages"),
       { from, enc, kind, ts: this._fs.serverTimestamp(), readBy: [this._user.uid] });
-    const lastEnc = await E2E.encryptMessage(text || (image ? "Photo" : "Voice message"), members, this._privKey);
+    const lastEnc = await E2E.encryptMessage(text || (image ? "Photo" : gif ? "GIF" : "Voice message"), members, this._privKey);
     // bump everyone else's unread counter (drives the blue new-message dot)
     const bumps = {};
     for (const m of members) if (m.uid !== this._user.uid) bumps[`unread.${m.uid}`] = this._fs.increment(1);

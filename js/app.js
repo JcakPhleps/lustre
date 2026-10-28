@@ -5,6 +5,7 @@ import { store, DEMO, nameLimit, usernameLimit, BIO_MAX, NAME_CHANGES_PER_WEEK }
 import { recordVoice, renderWave, fmtDur } from "./audio.js";
 import { CallManager } from "./calls.js";
 import * as sfx from "./sfx.js";
+import { giphyReady, trendingGifs, searchGifs, isGiphyUrl } from "./giphy.js";
 import { CHANGELOG, VERSION_LABEL } from "./changelog.js";
 
 /* ---------- tiny DOM helper ---------- */
@@ -429,8 +430,10 @@ function openConv(id) {
   const photoBtn = el("button", { class: "btn", text: "Photo", onclick: () => $("#imgInput").click() });
   const voiceBtn = el("button", { class: "btn", text: "Voice", onclick: toggleVoice });
   const sendBtn = el("button", { class: "btn blue", text: "Send", onclick: sendText });
+  const gifBtn = giphyReady() ? el("button", { class: "btn", text: "GIF", onclick: () => gifPanel ? closeGifs() : openGifs() }) : null;
   const composer = el("div", { class: "composer metal" }, [
     photoBtn,
+    gifBtn,
     el("div", { class: "field" }, [ta]),
     voiceBtn,
     sendBtn,
@@ -494,7 +497,7 @@ function openConv(id) {
         sfx.playReceive();
         if (document.hidden) {
           const m = incoming[incoming.length - 1];
-          notify(conv.name, m.text || (m.image ? "Photo" : m.audio ? "Voice message" : "New message"), "msg-" + id);
+          notify(conv.name, m.text || (m.image ? "Photo" : m.audio ? "Voice message" : m.gif ? "GIF" : "New message"), "msg-" + id);
         }
       }
     }
@@ -534,7 +537,7 @@ function openConv(id) {
   const EDIT_WINDOW = 5 * 60 * 1000;
   const canChange = m => Date.now() - m.ts < EDIT_WINDOW;
   function onMsgMenu(m, x, y, bubble) {
-    const isText = !m.image && !m.audio, fresh = canChange(m);
+    const isText = !m.image && !m.audio && !m.gif, fresh = canChange(m);
     const items = [
       isText && { label: "Copy", fn: () => navigator.clipboard?.writeText(m.text) },
       isText && fresh && { label: "Edit", fn: () => startEdit(m) },
@@ -574,6 +577,42 @@ function openConv(id) {
     store.setTyping(id, true);
     clearTimeout(typingTimer);
     typingTimer = setTimeout(() => store.setTyping(id, false), 2500);
+  }
+
+  // GIF picker (GIPHY): trending until you type, then search
+  let gifPanel = null, gifOutside = null;
+  function openGifs() {
+    const search = el("input", { class: "input", placeholder: "Search GIPHY", autocomplete: "off", spellcheck: "false" });
+    const grid = el("div", { class: "gif-grid" });
+    const note = el("div", { class: "gif-note" });
+    gifPanel = el("div", { class: "gif-panel" }, [search, grid, note, el("div", { class: "gif-credit", text: "Powered by GIPHY" })]);
+    gifPanel.style.bottom = composer.offsetHeight + 6 + "px";
+    chat.append(gifPanel);
+    let timer, reqNo = 0;
+    async function load() {
+      const q = search.value.trim(), my = ++reqNo;
+      note.textContent = "Loading…";
+      try {
+        const gifs = q ? await searchGifs(q) : await trendingGifs();
+        if (my !== reqNo) return;          // a newer search already started
+        grid.innerHTML = "";
+        note.textContent = gifs.length ? "" : "No GIFs found.";
+        for (const g of gifs) grid.append(el("img", { src: g.preview, alt: g.title, title: g.title, loading: "lazy", onclick: () => sendGif(g) }));
+      } catch (e) { if (my === reqNo) note.textContent = e.message; }
+    }
+    search.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(load, 350); });
+    search.addEventListener("keydown", e => { if (e.key === "Escape") closeGifs(); });
+    gifOutside = e => { if (gifPanel && !gifPanel.contains(e.target) && e.target !== gifBtn) closeGifs(); };
+    document.addEventListener("pointerdown", gifOutside, true);
+    load(); search.focus();
+  }
+  function closeGifs() {
+    gifPanel?.remove(); gifPanel = null;
+    document.removeEventListener("pointerdown", gifOutside, true);
+  }
+  function sendGif(g) {
+    store.sendMessage(id, { gif: { id: g.id, url: g.url, w: g.w, h: g.h, title: g.title } }); sfx.playSend();
+    closeGifs();
   }
 
   // image attachment
@@ -631,6 +670,9 @@ function msgNode(m, conv, prev, onMenu) {
   let bubble;
   if (m.unsent) {
     bubble = el("div", { class: "unsent", text: m.mine ? "You unsent a message" : `${m.from.name} unsent a message` });
+  } else if (m.gif && isGiphyUrl(m.gif.url)) {
+    bubble = el("div", { class: "bubble media gif " + (m.mine ? "me" : "them") },
+      [el("img", { src: m.gif.url, alt: m.gif.title || "GIF", width: m.gif.w, height: m.gif.h, onclick: () => openLightbox(m.gif.url) })]);
   } else if (m.image) {
     bubble = el("div", { class: "bubble media " + (m.mine ? "me" : "them") },
       [el("img", { src: m.image, onclick: () => openLightbox(m.image) })]);
@@ -646,7 +688,7 @@ function msgNode(m, conv, prev, onMenu) {
   if (conv.type === "group" && !m.mine)
     row.append(avatarEl({ uid: m.from.uid, name: m.from.name }, { cls: "sm clickable", onclick: () => openProfileCard(m.from) }));
   row.append(stack);
-  const hasMenu = (!m.image && !m.audio) || Date.now() - m.ts < 5 * 60 * 1000;   // copy, or still editable
+  const hasMenu = (!m.image && !m.audio && !m.gif) || Date.now() - m.ts < 5 * 60 * 1000;   // copy, or still editable
   if (m.mine && !m.unsent && onMenu && hasMenu) {
     const open = (x, y) => onMenu(m, x, y, bubble);
     attachLongPress(bubble, open);
