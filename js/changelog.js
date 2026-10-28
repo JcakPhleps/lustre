@@ -5,7 +5,7 @@
    ========================================================================= */
 
 export const CHANGELOG = [
-  { version: "v1.4", date: "2026-10-28", changes: [
+  { version: "Beta 2", date: "2026-10-28", changes: [
     "Aero mode — a Windows 7 Aero look with frosted glass over a glowing blue light-streak background (Settings → Appearance → Style)",
     "Aero sound pack — water-drop bloops and glassy chimes",
   ]},
@@ -40,3 +40,5 @@ export const CHANGELOG = [
 ];
 
 export const VERSION = CHANGELOG[0].version;   // auto-derived current version
+// what the version badge says: "beta 2" (or "beta v1.3" for the older v-style names)
+export const VERSION_LABEL = /^beta/i.test(VERSION) ? VERSION.toLowerCase() : "beta " + VERSION;

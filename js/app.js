@@ -5,7 +5,7 @@ import { store, DEMO } from "./store.js";
 import { recordVoice, renderWave, fmtDur } from "./audio.js";
 import { CallManager } from "./calls.js";
 import * as sfx from "./sfx.js";
-import { CHANGELOG, VERSION } from "./changelog.js";
+import { CHANGELOG, VERSION_LABEL } from "./changelog.js";
 
 /* ---------- tiny DOM helper ---------- */
 function el(tag, attrs = {}, kids = []) {
@@ -184,7 +184,7 @@ function renderAuth() {
   const toggle = el("span", { class: "link", text: "Create one" });
 
   const card = el("div", { class: "card" }, [
-    el("h1", {}, ["Lustre", el("span", { class: "indev", text: "beta " + VERSION, title: "What's new", onclick: openChangelog })]),
+    el("h1", {}, ["Lustre", el("span", { class: "indev", text: VERSION_LABEL, title: "What's new", onclick: openChangelog })]),
     el("div", { class: "tag", text: "stay in touch — with a little shine" }),
     el("label", { text: "Username" }), username,
     el("label", { text: "Password" }), pass,
@@ -265,7 +265,7 @@ function renderUnlock(user) {
   btn.onclick = go;
   pass.addEventListener("keydown", e => e.key === "Enter" && go());
   const card = el("div", { class: "card" }, [
-    el("h1", {}, ["Lustre", el("span", { class: "indev", text: "beta " + VERSION, title: "What's new", onclick: openChangelog })]),
+    el("h1", {}, ["Lustre", el("span", { class: "indev", text: VERSION_LABEL, title: "What's new", onclick: openChangelog })]),
     el("div", { class: "tag", text: "Enter your password to unlock your encrypted messages on this device" }),
     el("label", { text: "Password" }), pass,
     err,
@@ -303,7 +303,7 @@ function renderApp(user) {
   const sidebar = el("div", { class: "sidebar pinstripe" }, [
     el("div", { class: "brand" }, [
       el("span", { class: "spark" }),
-      el("span", { class: "wordmark" }, ["Lustre", el("span", { class: "indev", text: "beta " + VERSION, title: "What's new", onclick: openChangelog })]),
+      el("span", { class: "wordmark" }, ["Lustre", el("span", { class: "indev", text: VERSION_LABEL, title: "What's new", onclick: openChangelog })]),
     ]),
     el("div", { class: "active-line" }, [el("span", { class: "active-dot" }), activeCountEl]),
     el("div", { class: "sidebar-actions" }, [newChatBtn, friendsBtn, settingsBtn]),
