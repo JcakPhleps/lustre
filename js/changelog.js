@@ -6,7 +6,7 @@
 
 export const CHANGELOG = [
   { version: "v1.4", date: "2026-10-28", changes: [
-    "Aero mode — a Windows 7 / Frutiger Aero look with frosted glass, sky and bubbles (Settings → Appearance → Style)",
+    "Aero mode — a Windows 7 Aero look with frosted glass over a glowing blue light-streak background (Settings → Appearance → Style)",
     "Aero sound pack — water-drop bloops and glassy chimes",
   ]},
   { version: "v1.3", date: "2026-10-28", changes: [

@@ -3,7 +3,7 @@
 Current version: **v1.4**
 
 ## v1.4 — 2026-10-28
-- Aero mode — a Windows 7 / Frutiger Aero look with frosted glass, sky and bubbles (Settings → Appearance → Style)
+- Aero mode — a Windows 7 Aero look with frosted glass over a glowing blue light-streak background (Settings → Appearance → Style)
 - Aero sound pack — water-drop bloops and glassy chimes
 
 ## v1.3 — 2026-10-28
