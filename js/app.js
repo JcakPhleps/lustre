@@ -657,6 +657,67 @@ function attachLongPress(node, open) {
   node.addEventListener("touchend", e => { cancel(); if (fired) e.preventDefault(); });   // no click after a long-press
 }
 
+/* username autocomplete under an input. `find(query, alreadyTyped)` returns
+   people; `multi` = comma-separated list (completes the name being typed). */
+function attachSuggest(input, { find, multi = false, showOnEmpty = false }) {
+  input.setAttribute("autocomplete", "off");
+  const wrap = el("div", { class: "suggest-wrap" });
+  input.replaceWith(wrap); wrap.append(input);
+  const list = el("div", { class: "suggest hidden" });
+  wrap.append(list);
+  let items = [], sel = -1, timer = null, reqNo = 0;
+
+  const parts = () => input.value.split(",");
+  const current = () => (multi ? parts().pop() : input.value).trim();
+  const taken = () => multi ? parts().slice(0, -1).map(s => s.trim().toLowerCase().replace(/^@/, "")).filter(Boolean) : [];
+  const close = () => { list.classList.add("hidden"); items = []; sel = -1; };
+
+  function paint() {
+    list.innerHTML = "";
+    if (!items.length) { close(); return; }
+    items.forEach((u, i) => list.append(el("div", {
+      class: "suggest-item" + (i === sel ? " sel" : ""),
+      onpointerdown: e => { e.preventDefault(); pick(u); },   // before the input blurs
+    }, [
+      avatarEl({ uid: u.uid, name: u.name || u.username, photo: u.photo }, { cls: "sm" }),
+      el("div", { class: "friend-name" }, [
+        el("div", { text: u.name || u.username }),
+        el("div", { class: "friend-sub", text: "@" + u.username }),
+      ]),
+      u.tag ? el("span", { class: "suggest-tag", text: u.tag }) : null,
+    ])));
+    list.classList.remove("hidden");
+  }
+  function pick(u) {
+    if (multi) { const p = parts(); p[p.length - 1] = " " + u.username; input.value = p.join(",").replace(/^ /, "") + ", "; }
+    else input.value = u.username;
+    close(); input.focus();
+  }
+  function update() {
+    const q = current();
+    if (!q && !showOnEmpty) { close(); return; }
+    const my = ++reqNo;
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      let res = [];
+      try { res = await find(q, taken()); } catch {}
+      if (my !== reqNo) return;          // a newer keystroke already asked
+      items = res; sel = -1; paint();
+    }, q ? 150 : 0);
+  }
+
+  input.addEventListener("input", update);
+  input.addEventListener("focus", update);
+  input.addEventListener("blur", () => setTimeout(close, 100));
+  input.addEventListener("keydown", e => {
+    if (list.classList.contains("hidden") || !items.length) return;
+    if (e.key === "ArrowDown") { e.preventDefault(); sel = (sel + 1) % items.length; paint(); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); sel = (sel - 1 + items.length) % items.length; paint(); }
+    else if (e.key === "Enter" && sel >= 0) { e.preventDefault(); e.stopImmediatePropagation(); pick(items[sel]); }
+    else if (e.key === "Escape") { e.stopPropagation(); close(); }
+  });
+}
+
 /* full-screen image viewer (click a photo in the chat) */
 function openLightbox(src) {
   const close = () => { box.remove(); document.removeEventListener("keydown", onKey); };
@@ -806,6 +867,20 @@ $("#changelogOverlay").addEventListener("click", e => { if (e.target === e.curre
 function wireChrome() {
   // new chat modal
   $("#newChatCancel").onclick = () => $("#newChatOverlay").classList.remove("show");
+  attachSuggest($("#newChatPeople"), {
+    multi: true,
+    showOnEmpty: true,
+    // friends first (by username or name), then everyone else by username
+    find: async (q, taken) => {
+      const ql = q.toLowerCase().replace(/^@/, "");
+      const mine = friends.filter(f => !ql || f.username.startsWith(ql) || (f.name || "").toLowerCase().includes(ql))
+        .map(f => ({ ...f, tag: "Friend" }));
+      const others = ql ? await store.searchUsers(ql) : [];
+      const seen = new Set(taken), out = [];
+      for (const u of [...mine, ...others]) if (!seen.has(u.username)) { seen.add(u.username); out.push(u); }
+      return out.slice(0, 6);
+    },
+  });
   $("#newChatCreate").onclick = async () => {
     const people = $("#newChatPeople").value.split(",").map(s => s.trim()).filter(Boolean);
     if (!people.length) { $("#newChatErr").textContent = "Add at least one username."; return; }
@@ -867,6 +942,12 @@ function wireChrome() {
     } catch (e) { errEl.textContent = e.message || String(e); errEl.style.color = ""; }
   };
   $("#friendAddBtn").onclick = addFriend;
+  attachSuggest($("#friendAdd"), {
+    find: async q => {
+      const isFriend = new Set(friends.map(f => f.uid));
+      return (await store.searchUsers(q)).map(u => ({ ...u, tag: isFriend.has(u.uid) ? "Friend" : "" }));
+    },
+  });
   $("#friendAdd").addEventListener("keydown", e => e.key === "Enter" && addFriend());
   $("#friendsClose").onclick = () => { $("#friendsOverlay").classList.remove("show"); friendsOpen = false; };
 

@@ -1,6 +1,9 @@
 # Lustre — Changelog
 
-Current version: **v1.2**
+Current version: **v1.3**
+
+## v1.3 — 2026-10-28
+- Name suggestions pop up as you type in New Message and Add Friend
 
 ## v1.2 — 2026-10-27
 - Edit and unsend your messages — right-click, long-press, or the ⋯ button

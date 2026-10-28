@@ -97,13 +97,19 @@ class MockStore {
   onFriends(cb) { this._friendsCb = cb; cb(this._friends || []); return () => { this._friendsCb = null; }; }
   async sendFriendRequest(username) {
     const u = username.trim().replace(/^@/, ""); if (!u) throw new Error("Enter a username.");
-    (this._friends ||= []).push({ uid: uid(), username: u.toLowerCase(), name: u });
+    (this._friends ||= []).push({ uid: "demo-" + u.toLowerCase(), username: u.toLowerCase(), name: u });
     this._friendsCb?.(this._friends);
   }
   async acceptFriend() {}
   async declineFriend() {}
   async removeFriend(id) { this._friends = (this._friends || []).filter(f => f.uid !== id); this._friendsCb?.(this._friends || []); }
   async suggestFriends() { return []; }
+  async searchUsers(prefix, limit = 6) {
+    const p = prefix.trim().toLowerCase().replace(/^@/, ""); if (!p) return [];
+    const people = ["alex", "alexis", "sam", "samantha", "jordan", "jordyn", "taylor", "morgan", "casey", "riley", "mom"]
+      .map(u => ({ uid: "demo-" + u, username: u, name: u[0].toUpperCase() + u.slice(1) }));
+    return people.filter(u => u.username.startsWith(p)).slice(0, limit);
+  }
 
   _login(user) {
     this._user = user;
@@ -472,6 +478,17 @@ class FirebaseStore {
   async removeFriend(uid) {
     await this._fs.deleteDoc(this._fs.doc(this.db, "users", this._user.uid, "friends", uid));
     try { await this._fs.deleteDoc(this._fs.doc(this.db, "users", uid, "friends", this._user.uid)); } catch {}
+  }
+
+  // username autocomplete: everyone whose username starts with `prefix`
+  async searchUsers(prefix, limit = 6) {
+    const p = prefix.trim().toLowerCase().replace(/^@/, ""); if (!p) return [];
+    const q = this._fs.query(this._fs.collection(this.db, "users"),
+      this._fs.where("username", ">=", p), this._fs.where("username", "<", p + "\uf8ff"),
+      this._fs.orderBy("username"), this._fs.limit(limit + 1));
+    const snap = await this._fs.getDocs(q);
+    return snap.docs.filter(d => d.id !== this._user.uid).slice(0, limit)
+      .map(d => ({ uid: d.id, username: d.data().username, name: d.data().name, photo: d.data().photo || null }));
   }
 
   // friends-of-friends, ranked by how many friends you share
