@@ -158,6 +158,20 @@ html, body {
 .friend-name { flex: 1; min-width: 0; }
 .friend-name > div:first-child { font-weight: 700; font-size: 13px; color: #2a2a2c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .friend-sub { font-size: 11px; color: #8a8f97; }
+/* username autocomplete */
+.suggest-wrap { position: relative; flex: 1; }
+.suggest {
+  position: absolute; left: 0; right: 0; top: calc(100% + 3px); z-index: 60;
+  max-height: 260px; overflow-y: auto; padding: 4px;
+  background: linear-gradient(#fff, #f3f5f8); border: 1px solid #a7abb2; border-radius: 9px;
+  box-shadow: 0 6px 18px rgba(0,0,0,.25), inset 0 1px 0 #fff;
+}
+.suggest-item { display: flex; align-items: center; gap: 9px; padding: 5px 7px; border-radius: 6px; cursor: pointer; }
+.suggest-item:hover, .suggest-item.sel { background: linear-gradient(#e3efff, #cfe2fb); }
+.suggest-tag {
+  font-size: 10px; font-weight: 700; color: #2f7d16; padding: 1px 6px; border-radius: 8px;
+  background: #e2f5da; border: 1px solid #b9e3a8; white-space: nowrap;
+}
 .friend-mutual { font-size: 11px; color: #8a8f97; margin-right: 2px; white-space: nowrap; }
 
 /* settings panel */
