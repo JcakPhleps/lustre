@@ -1,7 +1,7 @@
 /* =========================================================================
    app.js — UI controller
    ========================================================================= */
-import { store, DEMO } from "./store.js";
+import { store, DEMO, nameLimit, usernameLimit, BIO_MAX, NAME_CHANGES_PER_WEEK } from "./store.js";
 import { recordVoice, renderWave, fmtDur } from "./audio.js";
 import { CallManager } from "./calls.js";
 import * as sfx from "./sfx.js";
@@ -57,6 +57,7 @@ function avatarEl(person = {}, opts = {}) {
   const av = el("div", { class: "avatar" + (opts.cls ? " " + opts.cls : "") + (opts.online ? " online" : "") });
   const dot = el("span", { class: "dot" });
   applyAvatar(av, person, dot);
+  if (opts.onclick) av.addEventListener("click", opts.onclick);
   if (!person.photo && person.uid && person.uid !== "me" && store.getProfile) {
     Promise.resolve(store.getProfile(person.uid)).then(p => { if (p && p.photo) applyAvatar(av, { ...person, photo: p.photo }, dot); });
   }
@@ -411,8 +412,10 @@ function openConv(id) {
   const head = el("div", { class: "chat-head metal" }, [
     el("button", { class: "btn backbtn", text: "‹ Chats",
       onclick: () => { renderApp._els.body.classList.remove("show-chat"); leaveConv(); } }),
-    avatarEl({ uid: conv.type === "dm" ? conv.members[0]?.uid : null, name: conv.name }, { cls: "sm", online: conv.online }),
-    el("div", { class: "who" }, [el("div", { class: "name", text: conv.name }), status]),
+    avatarEl({ uid: conv.type === "dm" ? conv.members[0]?.uid : null, name: conv.name }, { cls: "sm" + (conv.type === "dm" ? " clickable" : ""), online: conv.online,
+      onclick: conv.type === "dm" ? () => openProfileCard(conv.members[0]) : null }),
+    el("div", { class: "who" + (conv.type === "dm" ? " clickable" : ""), onclick: conv.type === "dm" ? () => openProfileCard(conv.members[0]) : null },
+      [el("div", { class: "name", text: conv.name }), status]),
     el("button", { class: "btn", text: "Call", onclick: () => startCall(conv, false) }),
     el("button", { class: "btn", text: "Video", onclick: () => startCall(conv, true) }),
   ]);
@@ -515,6 +518,7 @@ function openConv(id) {
   function sendText() {
     const text = ta.value.trim(); if (!text) return;
     if (editing) {
+      if (!canChange(editing)) { alert("You can only edit a message for 5 minutes after sending it."); cancelEdit(); return; }
       if (text !== editing.text)
         store.editMessage(id, editing.id, text).catch(e => alert(e.message || "Couldn’t edit that message."));
       cancelEdit(); store.setTyping(id, false);
@@ -526,13 +530,17 @@ function openConv(id) {
 
   // edit / unsend (your own messages): right-click, long-press, or the ⋯ button
   let editing = null;
-  function onMsgMenu(m, x, y) {
-    const isText = !m.image && !m.audio;
-    showMsgMenu(x, y, [
+  // edit / unsend are only allowed for 5 minutes after sending (firestore.rules agrees)
+  const EDIT_WINDOW = 5 * 60 * 1000;
+  const canChange = m => Date.now() - m.ts < EDIT_WINDOW;
+  function onMsgMenu(m, x, y, bubble) {
+    const isText = !m.image && !m.audio, fresh = canChange(m);
+    const items = [
       isText && { label: "Copy", fn: () => navigator.clipboard?.writeText(m.text) },
-      isText && { label: "Edit", fn: () => startEdit(m) },
-      { label: "Unsend", danger: true, fn: () => unsend(m) },
-    ]);
+      isText && fresh && { label: "Edit", fn: () => startEdit(m) },
+      fresh && { label: "Unsend", danger: true, fn: () => unsend(m, bubble) },
+    ].filter(Boolean);
+    if (items.length) showMsgMenu(x, y, items);
   }
   function startEdit(m) {
     editing = m;
@@ -546,9 +554,11 @@ function openConv(id) {
     sendBtn.textContent = "Send";
     editBar.classList.add("hidden");
   }
-  function unsend(m) {
+  async function unsend(m, bubble) {
     if (!confirm("Unsend this message? It’ll be removed for everyone in the chat.")) return;
+    if (!canChange(m)) { alert("You can only unsend a message for 5 minutes after sending it."); return; }
     if (editing?.id === m.id) cancelEdit();
+    await popBubble(bubble);
     store.unsendMessage(id, m.id).catch(e => alert(e.message || "Couldn’t unsend that message."));
   }
 
@@ -634,15 +644,36 @@ function msgNode(m, conv, prev, onMenu) {
 
   const row = el("div", { class: "msg" + (m.mine ? " mine" : "") });
   if (conv.type === "group" && !m.mine)
-    row.append(avatarEl({ uid: m.from.uid, name: m.from.name }, { cls: "sm" }));
+    row.append(avatarEl({ uid: m.from.uid, name: m.from.name }, { cls: "sm clickable", onclick: () => openProfileCard(m.from) }));
   row.append(stack);
-  if (m.mine && !m.unsent && onMenu) {
-    const open = (x, y) => onMenu(m, x, y);
+  const hasMenu = (!m.image && !m.audio) || Date.now() - m.ts < 5 * 60 * 1000;   // copy, or still editable
+  if (m.mine && !m.unsent && onMenu && hasMenu) {
+    const open = (x, y) => onMenu(m, x, y, bubble);
     attachLongPress(bubble, open);
-    row.append(el("button", { class: "msgmore", text: "⋯", title: "Edit or unsend",
+    row.append(el("button", { class: "msgmore", text: "⋯", title: "More",
       onclick: e => { const r = e.currentTarget.getBoundingClientRect(); open(r.left, r.bottom + 4); } }));
   }
   return row;
+}
+
+/* unsend animation: the bubble swells, then bursts into sparkles */
+function popBubble(bubble) {
+  if (!bubble || matchMedia("(prefers-reduced-motion: reduce)").matches) return Promise.resolve();
+  const r = bubble.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+  const burst = el("div", { class: "popburst" });
+  for (let i = 0; i < 14; i++) {
+    const a = (i / 14) * Math.PI * 2 + Math.random() * 0.4, d = 40 + Math.random() * 45 + r.width / 4;
+    const bit = el("span", { class: i % 3 ? "" : "ring" });
+    bit.style.left = cx + "px"; bit.style.top = cy + "px";
+    bit.style.setProperty("--dx", Math.cos(a) * d + "px");
+    bit.style.setProperty("--dy", Math.sin(a) * d * 0.75 + "px");
+    bit.style.animationDelay = Math.random() * 60 + "ms";
+    burst.append(bit);
+  }
+  bubble.classList.add("popping");
+  setTimeout(() => document.body.append(burst), 160);   // sparkles fly as the bubble bursts
+  setTimeout(() => burst.remove(), 1000);
+  return new Promise(res => setTimeout(res, 330));
 }
 
 /* right-click or long-press (touch) on a bubble → open its menu */
@@ -900,12 +931,18 @@ function wireChrome() {
   // settings modal
   $("#setSignout").onclick = () => { $("#settingsOverlay").classList.remove("show"); store.signOut(); };
   $("#setSave").onclick = async () => {
-    const errEl = $("#setErr");
+    const errEl = $("#setErr"), u = store.me();
+    const uname = $("#setUsername").value.trim().toLowerCase().replace(/^@/, "");
     try {
+      if (uname && uname !== u.username) {
+        if (!confirm(`Change your username to @${uname}?\n\nYou can only change it once a week, and you’ll sign in with the new one.`)) return;
+        await store.changeUsername(uname);
+      }
       await store.updateProfile({
-        name: $("#setName").value.trim(), email: $("#setEmail").value.trim(),
+        name: $("#setName").value.trim(), email: $("#setEmail").value.trim(), bio: $("#setBio").value,
         ...(settingsPhoto !== undefined ? { photo: settingsPhoto } : {}),
       });
+      paintProfileHints();
       errEl.textContent = "Saved."; errEl.style.color = "#2f9c16";
       setTimeout(() => $("#settingsOverlay").classList.remove("show"), 450);
     } catch (e) { errEl.textContent = e.message || String(e); errEl.style.color = ""; }
@@ -917,6 +954,8 @@ function wireChrome() {
     catch { $("#setErr").textContent = "Couldn’t load that image."; $("#setErr").style.color = ""; }
   };
   $("#setPfpRemove").onclick = () => { settingsPhoto = null; drawPfpPreview(); clearPfpSel(); };
+  $("#setBio").addEventListener("input", paintProfileHints);
+  $("#setViewCard").onclick = () => openProfileCard(store.me());
   $("#setChangePw").onclick = () => $("#pwArea").classList.toggle("hidden");
   $("#setWhatsNew").onclick = () => { $("#settingsOverlay").classList.remove("show"); openChangelog(); };
   $("#pwSave").onclick = async () => {
@@ -995,8 +1034,8 @@ function updateFriendsBadge() {
 }
 function friendRow(p, actions) {
   return el("div", { class: "friend-row" }, [
-    avatarEl({ uid: p.uid, name: p.name || p.username, photo: p.photo }, { cls: "sm" }),
-    el("div", { class: "friend-name" }, [
+    avatarEl({ uid: p.uid, name: p.name || p.username, photo: p.photo }, { cls: "sm clickable", onclick: () => openProfileCard(p) }),
+    el("div", { class: "friend-name clickable", onclick: () => openProfileCard(p) }, [
       el("div", { text: p.name || p.username }),
       el("div", { class: "friend-sub", text: "@" + p.username }),
     ]),
@@ -1026,8 +1065,64 @@ async function messageFriend(f) {
   $("#friendsOverlay").classList.remove("show"); friendsOpen = false;
   const existing = convs.find(c => c.type === "dm" && c.members.some(m => m.uid === f.uid));
   if (existing) return openConv(existing.id);
-  try { const id = await store.createConversation({ type: "dm", handles: [f.username] }); setTimeout(() => openConv(id), 150); }
-  catch (e) { alert(e.message || "Couldn’t start that chat."); }
+  try {
+    const fresh = await store.fetchProfile(f.uid).catch(() => null);   // usernames can change
+    const id = await store.createConversation({ type: "dm", handles: [fresh?.username || f.username] });
+    setTimeout(() => openConv(id), 150);
+  } catch (e) { alert(e.message || "Couldn’t start that chat."); }
+}
+
+/* profile card: big picture, name, @username, online, bio */
+function openProfileCard(person) {
+  if (!person?.uid) return;
+  $("#profileOverlay")?.remove();
+  const me = store.me(), isMe = person.uid === me.uid || person.uid === "me";
+  const shown = isMe ? me : person;
+  const av = avatarEl({ uid: isMe ? null : person.uid, name: shown.name || shown.username, photo: shown.photo }, { cls: "xl" });
+  const nameEl = el("div", { class: "pc-name", text: shown.name || shown.username || "…" });
+  const userEl = el("div", { class: "pc-user", text: shown.username ? "@" + shown.username : "" });
+  const statusEl = el("div", { class: "pc-status" });
+  const bioEl = el("div", { class: "pc-bio" });
+  const sinceEl = el("div", { class: "pc-since" });
+  const actions = el("div", { class: "row" });
+  const ov = el("div", { class: "overlay show", id: "profileOverlay", onclick: e => { if (e.target === ov) close(); } }, [
+    el("div", { class: "card profile-card" }, [el("div", { class: "pc-banner" }), av, nameEl, userEl, statusEl, bioEl, sinceEl, actions]),
+  ]);
+  const onKey = e => { if (e.key === "Escape") close(); };
+  function close() { ov.remove(); document.removeEventListener("keydown", onKey); }
+  document.addEventListener("keydown", onKey);
+  document.body.append(ov);
+
+  const setStatus = on => { statusEl.className = "pc-status" + (on ? " on" : ""); statusEl.textContent = on ? "Online" : "Offline"; };
+  const fill = p => {
+    nameEl.textContent = p.name || p.username || "Unknown";
+    userEl.textContent = p.username ? "@" + p.username : "";
+    bioEl.textContent = p.bio || (isMe ? "You haven’t written a bio yet — add one in Settings → Profile." : "No bio yet.");
+    bioEl.classList.toggle("empty", !p.bio);
+    sinceEl.textContent = p.createdAt ? "Joined " + new Date(p.createdAt).toLocaleDateString(undefined, { month: "long", year: "numeric" }) : "";
+    applyAvatar(av, { name: p.name || p.username, photo: p.photo }, av.querySelector(".dot"));
+  };
+  fill(shown); setStatus(isMe);
+  if (!isMe) {
+    store.fetchProfile(person.uid).then(p => p && fill(p)).catch(() => {});
+    store.isOnline(person.uid).then(setStatus).catch(() => {});
+  }
+
+  if (isMe) {
+    actions.append(
+      el("button", { class: "btn", text: "Close", onclick: close }),
+      el("button", { class: "btn blue", text: "Edit profile", onclick: () => { close(); openSettings(); } }));
+  } else {
+    const isFriend = friends.some(f => f.uid === person.uid);
+    const addBtn = el("button", { class: "btn" + (isFriend ? "" : " green"), text: isFriend ? "Friends ✓" : "Add Friend" });
+    if (isFriend) addBtn.disabled = true;
+    else addBtn.onclick = async () => {
+      try { await store.sendFriendRequest(userEl.textContent.replace(/^@/, "") || person.username); addBtn.textContent = "Request sent"; addBtn.disabled = true; }
+      catch (e) { addBtn.textContent = e.message || "Couldn’t add"; }
+    };
+    actions.append(addBtn,
+      el("button", { class: "btn blue", text: "Message", onclick: () => { close(); messageFriend(person); } }));
+  }
 }
 function buildSwatches(container, map, current, kind) {
   container.innerHTML = "";
@@ -1052,6 +1147,19 @@ function buildSegmented(container, options, current, onPick) {
     container.append(b);
   }
 }
+// "2 of 3 changes left this week" etc. under the profile fields
+function paintProfileHints() {
+  const u = store.me(), when = t => new Date(t).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  const nl = nameLimit(u);
+  $("#setNameHint").textContent = nl.left
+    ? `${nl.left} of ${NAME_CHANGES_PER_WEEK} changes left this week` + (nl.resetAt ? ` · resets ${when(nl.resetAt)}` : "")
+    : `No changes left this week — resets ${when(nl.resetAt)}`;
+  $("#setName").disabled = !nl.left;
+  const ul = usernameLimit(u);
+  $("#setUsernameHint").textContent = ul.ok ? "You can change your username once a week." : `You can change it again on ${when(ul.nextAt)}.`;
+  $("#setUsername").disabled = !ul.ok;
+  $("#setBioHint").textContent = `${$("#setBio").value.length}/${BIO_MAX}`;
+}
 function openSettings() {
   const u = store.me();
   $("#settingsWho").textContent = u.username ? "@" + u.username : "Demo user";
@@ -1066,7 +1174,10 @@ function openSettings() {
     presets.append(choice);
   }
   $("#setName").value = u.name || "";
+  $("#setUsername").value = u.username || "";
+  $("#setBio").value = u.bio || "";
   $("#setEmail").value = u.email || "";
+  paintProfileHints();
   buildSwatches($("#setAccent"), ACCENTS, prefs.accent, "accent");
   buildSwatches($("#setWall"), WALLS, prefs.wall, "wall");
   buildSegmented($("#setSize"), ["Small", "Medium", "Large"], prefs.size, v => { prefs.size = v; prefSet("size", v); applyPrefs(); });

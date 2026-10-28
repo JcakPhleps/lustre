@@ -213,6 +213,39 @@ html, body {
 .pfp-choice { cursor: pointer; }
 .pfp-choice.sel { outline: 3px solid var(--blue-mid); outline-offset: 1px; }
 
+/* profile fields in Settings */
+.hint { font-size: 11px; color: #8a8f97; margin: 3px 2px 0; }
+.userfield { display: flex; align-items: center; gap: 4px; }
+.userfield span { font-weight: 700; color: #8a8f97; }
+textarea.input { resize: none; line-height: 1.35; font-family: var(--font); }
+.input:disabled { opacity: .6; cursor: not-allowed; }
+
+/* profile card */
+.clickable { cursor: pointer; }
+.avatar.xl { width: 96px; height: 96px; flex-basis: 96px; border-radius: 22px; font-size: 38px; }
+.avatar.xl.emoji { font-size: 52px; }
+.card.profile-card { width: 320px; text-align: center; position: relative; overflow: hidden; padding-top: 0; }
+.pc-banner {
+  height: 70px; margin: 0 -22px -48px;
+  background: linear-gradient(var(--blue-top), var(--blue-mid) 55%, var(--blue-bot-ok));
+  box-shadow: inset 0 -1px 0 rgba(0,0,0,.15), inset 0 1px 0 rgba(255,255,255,.4);
+}
+.profile-card .avatar.xl { margin: 0 auto; border: 4px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,.3); }
+.pc-name { font-size: 20px; font-weight: 800; color: #2a2a2c; margin-top: 10px; text-shadow: 0 1px 0 #fff; word-wrap: break-word; }
+.pc-user { font-size: 13px; color: #8a8f97; margin-top: 1px; }
+.pc-status { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 12px; font-weight: 700; color: #8a8f97; }
+.pc-status::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: #b9bec6; box-shadow: inset 0 1px 0 rgba(255,255,255,.5); }
+.pc-status.on { color: #2f9c16; }
+.pc-status.on::before { background: radial-gradient(circle at 35% 30%, #b6ff7a, #46c923 60%, #2f9c16); box-shadow: 0 0 4px rgba(70,201,35,.75); }
+.pc-bio {
+  margin: 12px 0 0; padding: 10px 12px; border-radius: 10px; text-align: left;
+  font-size: 13.5px; line-height: 1.4; color: #333; white-space: pre-wrap; word-wrap: break-word;
+  background: linear-gradient(#fff, #f3f5f8); border: 1px solid rgba(0,0,0,.1); box-shadow: inset 0 1px 2px rgba(0,0,0,.06);
+  -webkit-user-select: text; user-select: text;
+}
+.pc-bio.empty { color: #9aa0a8; font-style: italic; text-align: center; }
+.pc-since { font-size: 11px; color: #9aa0a8; margin-top: 8px; min-height: 13px; }
+
 /* changelog */
 .changelog-list { margin: 2px 0 12px 20px; }
 .changelog-list li { font-size: 13px; color: #444; margin: 4px 0; line-height: 1.35; }
@@ -428,6 +461,27 @@ html, body {
   text-shadow: 0 1px 0 rgba(255,255,255,.8);
 }
 .editbar .btn { padding: 3px 10px; font-size: 12px; }
+
+/* unsend "pop": swell, then burst */
+.bubble.popping { animation: bubble-pop .33s cubic-bezier(.3,1.6,.6,1) forwards; pointer-events: none; }
+@keyframes bubble-pop {
+  0%   { transform: scale(1);    opacity: 1; filter: none; }
+  45%  { transform: scale(1.18); opacity: 1; filter: brightness(1.25); }
+  100% { transform: scale(.2);   opacity: 0; filter: brightness(1.6) blur(2px); }
+}
+.popburst { position: fixed; inset: 0; pointer-events: none; z-index: 1100; }
+.popburst span {
+  position: absolute; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff, var(--blue-top) 45%, var(--blue-bot-ok));
+  box-shadow: 0 0 6px var(--blue-top);
+  animation: pop-bit .7s cubic-bezier(.15,.8,.3,1) forwards;
+}
+.popburst span.ring { width: 12px; height: 12px; margin: -6px 0 0 -6px; background: none; border: 2px solid var(--blue-top); }
+@keyframes pop-bit {
+  0%   { transform: translate(0, 0) scale(.4); opacity: 1; }
+  70%  { opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) scale(1); opacity: 0; }
+}
 
 /* the "typing…" bubble */
 .typing { display: inline-flex; gap: 4px; padding: 12px 15px; }

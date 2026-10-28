@@ -1,6 +1,6 @@
 {
   "name": "lustre",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Lustre — a chat-first social app with a 2012 skeuomorphic skin. E2E encrypted, Firebase-backed.",
   "type": "module",
   "private": true,
