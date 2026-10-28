@@ -84,25 +84,12 @@ html, body {
 /* ---- sidebar brand (the Lustre wordmark) ---- */
 .brand {
   display: flex; align-items: center; justify-content: center; gap: 8px;
-  padding: 16px 10px 2px;
+  padding: 16px 10px 12px;
   font-size: 30px; font-weight: 800; letter-spacing: -.5px;
   color: #4a4e57;
   text-shadow: 0 1px 0 rgba(255,255,255,.9), 0 2px 4px rgba(0,0,0,.12);
 }
 
-/* "x active" counter under the wordmark */
-.active-line {
-  display: flex; align-items: center; justify-content: center; gap: 6px;
-  padding: 2px 0 10px;
-  border-bottom: 1px solid rgba(0,0,0,.1);
-  box-shadow: 0 1px 0 rgba(255,255,255,.55);
-}
-.active-dot {
-  width: 9px; height: 9px; border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #b6ff7a, #46c923 60%, #2f9c16);
-  box-shadow: 0 0 4px rgba(70,201,35,.75), inset 0 1px 0 rgba(255,255,255,.5);
-}
-.active-count { font-size: 12px; font-weight: 700; color: #6b7178; text-shadow: 0 1px 0 rgba(255,255,255,.6); }
 
 /* blue "new message" dot on a conversation row */
 .newdot {
@@ -402,6 +389,24 @@ textarea.input { resize: none; line-height: 1.35; font-family: var(--font); }
 /* image & voice in bubbles */
 .bubble.media { padding: 4px; }
 .bubble.media img { display: block; max-width: 220px; border-radius: 13px; cursor: zoom-in; }
+.bubble.gif img { height: auto; }
+
+/* GIF picker */
+.gif-panel {
+  position: absolute; left: 10px; right: 10px; z-index: 20; max-width: 420px;
+  display: flex; flex-direction: column; gap: 6px; padding: 8px;
+  background: linear-gradient(#fdfdfd, #eef0f3); border: 1px solid #a7abb2; border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.3), inset 0 1px 0 #fff;
+}
+.gif-grid { columns: 3 110px; column-gap: 5px; max-height: 300px; overflow-y: auto; }
+.gif-grid img {
+  display: block; width: 100%; margin-bottom: 5px; border-radius: 6px; cursor: pointer;
+  background: #dfe2e7; break-inside: avoid; transition: transform .12s;
+}
+.gif-grid img:hover { transform: scale(1.04); box-shadow: 0 2px 8px rgba(0,0,0,.3); }
+.gif-note { font-size: 12px; color: #8a8f97; text-align: center; }
+.gif-note:empty { display: none; }
+.gif-credit { font-size: 10px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase; color: #8a8f97; text-align: right; }
 
 /* voice message */
 .voice { display: flex; align-items: center; gap: 9px; min-width: 150px; }
