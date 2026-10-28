@@ -5,7 +5,7 @@ import { store, DEMO } from "./store.js";
 import { recordVoice, renderWave, fmtDur } from "./audio.js";
 import { CallManager } from "./calls.js";
 import * as sfx from "./sfx.js";
-import { CHANGELOG, VERSION } from "./changelog.js";
+import { CHANGELOG, VERSION_LABEL } from "./changelog.js";
 
 /* ---------- tiny DOM helper ---------- */
 function el(tag, attrs = {}, kids = []) {
@@ -123,6 +123,7 @@ const prefs = {
   enter: prefGet("enter", "1") === "1",
   receipts: prefGet("receipts", "1") === "1",
   notify: prefGet("notify", "0") === "1",
+  theme: prefGet("theme", document.documentElement.dataset.defaultTheme || "skeuo"),   // "skeuo" | "aero"
 };
 function notify(title, body, tag) {
   if (!prefs.notify || typeof Notification === "undefined" || Notification.permission !== "granted") return;
@@ -138,6 +139,7 @@ function applyPrefs() {
   r.setProperty("--blue-top", a[0]); r.setProperty("--blue-mid", a[1]); r.setProperty("--blue-bot-ok", a[2]);
   r.setProperty("--linen", WALLS[prefs.wall] || WALLS.Linen);
   r.setProperty("--bubble-size", SIZES[prefs.size] || SIZES.Medium);
+  document.documentElement.dataset.theme = prefs.theme === "aero" ? "aero" : "skeuo";
 }
 applyPrefs();
 
@@ -182,7 +184,7 @@ function renderAuth() {
   const toggle = el("span", { class: "link", text: "Create one" });
 
   const card = el("div", { class: "card" }, [
-    el("h1", {}, ["Lustre", el("span", { class: "indev", text: "beta " + VERSION, title: "What's new", onclick: openChangelog })]),
+    el("h1", {}, ["Lustre", el("span", { class: "indev", text: VERSION_LABEL, title: "What's new", onclick: openChangelog })]),
     el("div", { class: "tag", text: "stay in touch — with a little shine" }),
     el("label", { text: "Username" }), username,
     el("label", { text: "Password" }), pass,
@@ -263,7 +265,7 @@ function renderUnlock(user) {
   btn.onclick = go;
   pass.addEventListener("keydown", e => e.key === "Enter" && go());
   const card = el("div", { class: "card" }, [
-    el("h1", {}, ["Lustre", el("span", { class: "indev", text: "beta " + VERSION, title: "What's new", onclick: openChangelog })]),
+    el("h1", {}, ["Lustre", el("span", { class: "indev", text: VERSION_LABEL, title: "What's new", onclick: openChangelog })]),
     el("div", { class: "tag", text: "Enter your password to unlock your encrypted messages on this device" }),
     el("label", { text: "Password" }), pass,
     err,
@@ -301,7 +303,7 @@ function renderApp(user) {
   const sidebar = el("div", { class: "sidebar pinstripe" }, [
     el("div", { class: "brand" }, [
       el("span", { class: "spark" }),
-      el("span", { class: "wordmark" }, ["Lustre", el("span", { class: "indev", text: "beta " + VERSION, title: "What's new", onclick: openChangelog })]),
+      el("span", { class: "wordmark" }, ["Lustre", el("span", { class: "indev", text: VERSION_LABEL, title: "What's new", onclick: openChangelog })]),
     ]),
     el("div", { class: "active-line" }, [el("span", { class: "active-dot" }), activeCountEl]),
     el("div", { class: "sidebar-actions" }, [newChatBtn, friendsBtn, settingsBtn]),
@@ -1068,8 +1070,17 @@ function openSettings() {
   buildSwatches($("#setAccent"), ACCENTS, prefs.accent, "accent");
   buildSwatches($("#setWall"), WALLS, prefs.wall, "wall");
   buildSegmented($("#setSize"), ["Small", "Medium", "Large"], prefs.size, v => { prefs.size = v; prefSet("size", v); applyPrefs(); });
-  buildSegmented($("#setPack"), ["MSN", "Classic"], sfx.getPack() === "classic" ? "Classic" : "MSN",
-    v => sfx.setPack(v === "Classic" ? "classic" : "msn"));
+  const PACKS = { MSN: "msn", Classic: "classic", Aero: "aero" };
+  const buildPacks = () => buildSegmented($("#setPack"), Object.keys(PACKS),
+    Object.keys(PACKS).find(k => PACKS[k] === sfx.getPack()) || "MSN", v => sfx.setPack(PACKS[v]));
+  buildPacks();
+  // switching style also switches to its matching sound pack (can be changed after)
+  buildSegmented($("#setTheme"), ["Skeuomorphic", "Aero"], prefs.theme === "aero" ? "Aero" : "Skeuomorphic", v => {
+    prefs.theme = v === "Aero" ? "aero" : "skeuo"; prefSet("theme", prefs.theme); applyPrefs();
+    if (prefs.theme === "aero" && sfx.getPack() !== "aero") sfx.setPack("aero");
+    if (prefs.theme === "skeuo" && sfx.getPack() === "aero") sfx.setPack("msn");
+    buildPacks();
+  });
   const enter = $("#setEnter"); enter.checked = prefs.enter;
   enter.onchange = () => { prefs.enter = enter.checked; prefSet("enter", enter.checked ? "1" : "0"); };
   const rec = $("#setReceipts"); rec.checked = prefs.receipts;

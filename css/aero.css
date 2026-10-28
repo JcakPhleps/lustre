@@ -2,7 +2,7 @@
    Lustre — Aero mode (Windows 7 Aero / Frutiger Aero)
    -------------------------------------------------------------------------
    Turned on by <html data-theme="aero"> (Settings → Appearance → Style).
-   Sky-to-grass wallpaper with floating bubbles, frosted glass panes,
+   Dark blue light-streak wallpaper, frosted glass panes,
    glowing title text, Windows 7 buttons, and glossy aqua orbs.
    Pure CSS like the rest — every rule here is scoped to the aero theme.
    ========================================================================= */
@@ -12,43 +12,45 @@ html[data-theme="aero"] {
   --glass: rgba(255,255,255,.38);
   --glass-strong: rgba(255,255,255,.62);
   --glass-edge: rgba(255,255,255,.75);
-  --aero-ink: #1b2f45;
+  --aero-ink: #1b2f45;      /* text on light glass (dialogs, bubbles, selection) */
   --aero-sub: #4b6582;
+  --aero-light: #f2f9ff;    /* text on the dark glass panes */
+  --aero-light-sub: #a9c8e6;
+  --aero-halo: 0 0 8px rgba(0,15,40,.85), 0 1px 2px rgba(0,0,0,.55);
   --radius-bubble: 16px;
 }
 
 /* ----------------------------------------------------- the wallpaper */
-/* blue sky → aqua horizon → rolling green hill, with sun-glow and light rays */
+/* deep navy with sweeping blue-cyan light streaks (Windows 7 "aurora" feel) */
 html[data-theme="aero"] body {
   color: var(--aero-ink);
-  background-color: #4fb6ee;
+  background-color: #0b1b2e;
   background-image:
-    radial-gradient(ellipse 60% 45% at 78% 8%, rgba(255,255,255,.75), rgba(255,255,255,0) 70%),
-    repeating-conic-gradient(from 200deg at 78% -10%, rgba(255,255,255,.10) 0 4deg, rgba(255,255,255,0) 4deg 11deg),
-    radial-gradient(ellipse 95% 38% at 30% 104%, #b9f05a 0 38%, #6cc72b 62%, rgba(78,170,30,0) 63%),
-    radial-gradient(ellipse 80% 30% at 90% 108%, #9be24a 0 45%, #4fae1f 64%, rgba(60,150,20,0) 65%),
-    linear-gradient(#0f6fc9 0%, #3aa3ea 35%, #8fd6fb 62%, #d8f4ff 80%, #eafbff 100%);
+    radial-gradient(ellipse 22% 6% at 74% 53%, rgba(200,250,255,.9), rgba(120,225,255,.45) 50%, rgba(80,200,255,0) 80%),
+    radial-gradient(ellipse 45% 14% at 68% 52%, rgba(90,210,255,.6), rgba(50,160,230,.2) 55%, rgba(40,130,210,0) 80%),
+    radial-gradient(ellipse 60% 30% at 64% 50%, rgba(50,150,220,.45), rgba(30,100,170,0) 70%),
+    radial-gradient(ellipse 50% 14% at 60% 86%, rgba(60,160,255,.55), rgba(30,110,210,0) 70%),
+    radial-gradient(ellipse 60% 40% at 92% 30%, rgba(110,150,160,.35), rgba(80,110,130,0) 70%),
+    radial-gradient(ellipse 70% 60% at 10% 30%, rgba(20,70,130,.55), rgba(10,40,80,0) 70%),
+    linear-gradient(165deg, #0a1a30 0%, #0e3456 38%, #133a52 55%, #0d2840 72%, #08121f 100%);
   background-attachment: fixed;
 }
-/* floating soap bubbles drifting up the screen */
+/* the streaks: thin bright bands, softly blurred, sweeping across the screen */
 html[data-theme="aero"] body::before {
-  content: ""; position: fixed; inset: -20% 0 0; pointer-events: none; z-index: 0;
-  background-image:
-    radial-gradient(circle at 30% 30%, rgba(255,255,255,.9) 0 3%, rgba(255,255,255,0) 11%),
-    radial-gradient(circle, rgba(255,255,255,0) 0 62%, rgba(255,255,255,.55) 68%, rgba(255,255,255,0) 72%),
-    radial-gradient(circle at 30% 30%, rgba(255,255,255,.85) 0 3%, rgba(255,255,255,0) 11%),
-    radial-gradient(circle, rgba(255,255,255,0) 0 62%, rgba(255,255,255,.5) 68%, rgba(255,255,255,0) 72%),
-    radial-gradient(circle at 30% 30%, rgba(255,255,255,.85) 0 3%, rgba(255,255,255,0) 11%),
-    radial-gradient(circle, rgba(255,255,255,0) 0 62%, rgba(255,255,255,.45) 68%, rgba(255,255,255,0) 72%);
-  background-repeat: no-repeat;
-  background-size: 90px 90px, 90px 90px, 54px 54px, 54px 54px, 130px 130px, 130px 130px;
-  background-position: 12% 80%, 12% 80%, 86% 64%, 86% 64%, 62% 96%, 62% 96%;
-  animation: aero-float 26s linear infinite;
-  opacity: .9;
+  content: ""; position: fixed; inset: -30% -20%; pointer-events: none; z-index: 0;
+  background:
+    linear-gradient(177deg, transparent 49.5%, rgba(120,225,255,.6) 49.85%, rgba(200,248,255,.75) 50%, rgba(90,200,255,.3) 50.4%, transparent 51.3%),
+    linear-gradient(171deg, transparent 47%, rgba(80,190,255,.35) 48.3%, rgba(60,160,240,.12) 49.6%, transparent 51%),
+    linear-gradient(159deg, transparent 44.2%, rgba(90,200,255,.4) 45.2%, rgba(210,250,255,.8) 45.55%, rgba(100,210,255,.35) 46.1%, transparent 47.6%),
+    linear-gradient(156deg, transparent 41.5%, rgba(110,210,255,.22) 42.6%, rgba(160,235,255,.35) 42.9%, transparent 44.2%),
+    linear-gradient(181deg, transparent 63%, rgba(50,150,255,.4) 64.2%, rgba(120,200,255,.6) 64.5%, transparent 65.8%),
+    linear-gradient(163deg, transparent 30%, rgba(140,170,195,.16) 31.5%, transparent 33%);
+  filter: blur(5px);
+  animation: aero-drift 30s ease-in-out infinite alternate;
 }
-@keyframes aero-float {
-  from { transform: translateY(0); }
-  to   { transform: translateY(-18%); }
+@keyframes aero-drift {
+  from { transform: translate(0, 0) rotate(0deg); }
+  to   { transform: translate(-2%, 1.5%) rotate(-1.2deg); }
 }
 @media (prefers-reduced-motion: reduce) { html[data-theme="aero"] body::before { animation: none; } }
 html[data-theme="aero"] #app { position: relative; z-index: 1; }
@@ -56,42 +58,42 @@ html[data-theme="aero"] #app { position: relative; z-index: 1; }
 /* ----------------------------------------------------- frosted glass */
 html[data-theme="aero"] .pinstripe,
 html[data-theme="aero"] .metal {
-  background: var(--glass);
+  background: rgba(12,32,58,.38);
   -webkit-backdrop-filter: blur(14px) saturate(160%);
   backdrop-filter: blur(14px) saturate(160%);
 }
 /* Aero title bar: glass with a bright sheen across the top half */
 html[data-theme="aero"] .metal {
   background:
-    linear-gradient(rgba(255,255,255,.62), rgba(255,255,255,.28) 50%, rgba(200,230,255,.18) 51%, rgba(170,215,250,.30));
-  border-bottom: 1px solid rgba(40,80,130,.45);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.9), inset 0 -1px 0 rgba(255,255,255,.35), 0 1px 6px rgba(0,40,90,.18);
+    linear-gradient(rgba(255,255,255,.26), rgba(255,255,255,.08) 50%, rgba(0,20,45,.10) 51%, rgba(40,100,160,.28));
+  border-bottom: 1px solid rgba(0,0,0,.55);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.35), inset 0 -1px 0 rgba(255,255,255,.12), 0 1px 8px rgba(0,0,0,.3);
 }
-html[data-theme="aero"] .composer.metal { border-top: 1px solid rgba(40,80,130,.45); border-bottom: 0; }
+html[data-theme="aero"] .composer.metal { border-top: 1px solid rgba(0,0,0,.55); border-bottom: 0; }
 html[data-theme="aero"] .sidebar {
-  border-right: 1px solid rgba(255,255,255,.7);
-  box-shadow: 1px 0 0 rgba(30,70,120,.35), 4px 0 18px rgba(0,40,90,.12);
+  border-right: 1px solid rgba(255,255,255,.22);
+  box-shadow: 1px 0 0 rgba(0,0,0,.45), 4px 0 18px rgba(0,0,0,.25);
 }
 html[data-theme="aero"] .sidebar .search,
 html[data-theme="aero"] .sidebar-actions,
-html[data-theme="aero"] .active-line { border-bottom-color: rgba(255,255,255,.5); box-shadow: 0 1px 0 rgba(30,70,120,.12); }
+html[data-theme="aero"] .active-line { border-bottom-color: rgba(0,0,0,.35); box-shadow: 0 1px 0 rgba(255,255,255,.1); }
 
 /* the classic Aero glowing caption text */
-html[data-theme="aero"] .chat-head .name,
 html[data-theme="aero"] .card h1 {
   color: #10223a;
   text-shadow: 0 0 10px #fff, 0 0 4px #fff, 0 0 1px #fff;
 }
-html[data-theme="aero"] .chat-head .status { color: var(--aero-sub); text-shadow: 0 0 6px #fff; }
-html[data-theme="aero"] .chat-head .status.here { color: #1f8a12; }
+html[data-theme="aero"] .chat-head .name { color: var(--aero-light); text-shadow: var(--aero-halo); }
+html[data-theme="aero"] .chat-head .status { color: var(--aero-light-sub); text-shadow: var(--aero-halo); }
+html[data-theme="aero"] .chat-head .status.here { color: #8dff6a; }
 
 /* ----------------------------------------------------- wordmark */
 html[data-theme="aero"] .brand {
   color: transparent;
-  background: linear-gradient(#5fd0ff, #0a78d4 55%, #045aa8);
+  background: linear-gradient(#e6fbff, #8fe1ff 50%, #3fb2f2);
   -webkit-background-clip: text; background-clip: text;
   text-shadow: none;
-  filter: drop-shadow(0 0 6px rgba(255,255,255,.95)) drop-shadow(0 1px 1px rgba(0,50,110,.35));
+  filter: drop-shadow(0 0 8px rgba(80,190,255,.6)) drop-shadow(0 1px 2px rgba(0,0,0,.6));
 }
 html[data-theme="aero"] .brand .indev { -webkit-text-fill-color: #b07d16; filter: none; }
 /* glossy aqua orb (the Windows 7 start-orb vibe) */
@@ -102,7 +104,7 @@ html[data-theme="aero"] .brand .spark {
     radial-gradient(circle at 50% 75%, #8ff0ff, #18a6e8 55%, #075ea8);
   box-shadow: 0 0 8px rgba(80,200,255,.8), inset 0 -2px 4px rgba(0,40,90,.35), 0 1px 2px rgba(0,30,70,.4);
 }
-html[data-theme="aero"] .active-count { color: var(--aero-sub); text-shadow: 0 0 6px #fff; }
+html[data-theme="aero"] .active-count { color: var(--aero-light-sub); text-shadow: var(--aero-halo); }
 
 /* ----------------------------------------------------- conversation list */
 html[data-theme="aero"] .conv {
@@ -110,8 +112,8 @@ html[data-theme="aero"] .conv {
   border: 1px solid transparent; border-radius: 4px; box-shadow: none;
 }
 html[data-theme="aero"] .conv:hover {
-  background: linear-gradient(rgba(250,253,255,.7), rgba(225,242,255,.55));
-  border-color: rgba(140,190,240,.8);
+  background: linear-gradient(rgba(255,255,255,.16), rgba(160,210,255,.10));
+  border-color: rgba(150,200,255,.45);
 }
 /* Windows 7 selection: pale blue gradient, crisp blue border, dark text */
 html[data-theme="aero"] .conv.active {
@@ -119,10 +121,10 @@ html[data-theme="aero"] .conv.active {
   border-color: #7da2ce;
   box-shadow: inset 0 0 0 1px rgba(255,255,255,.8);
 }
-html[data-theme="aero"] .conv-name,
-html[data-theme="aero"] .conv.active .conv-name { color: var(--aero-ink); text-shadow: 0 0 6px rgba(255,255,255,.9); }
+html[data-theme="aero"] .conv-name { color: var(--aero-light); text-shadow: var(--aero-halo); }
 html[data-theme="aero"] .conv-last,
-html[data-theme="aero"] .conv-time,
+html[data-theme="aero"] .conv-time { color: var(--aero-light-sub); text-shadow: 0 1px 2px rgba(0,0,0,.5); }
+html[data-theme="aero"] .conv.active .conv-name { color: var(--aero-ink); text-shadow: 0 0 6px rgba(255,255,255,.9); }
 html[data-theme="aero"] .conv.active .conv-last,
 html[data-theme="aero"] .conv.active .conv-time { color: var(--aero-sub); text-shadow: none; }
 html[data-theme="aero"] .conv.active .newdot {
@@ -139,15 +141,12 @@ html[data-theme="aero"] .avatar.sm { border-radius: 5px; }
 html[data-theme="aero"] .avatar.lg { border-radius: 10px; }
 
 /* ----------------------------------------------------- transcript */
-html[data-theme="aero"] .messages {
-  background: rgba(255,255,255,.22);
-  -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
-}
+html[data-theme="aero"] .messages { background: transparent; }
 html[data-theme="aero"] .daystamp,
 html[data-theme="aero"] .receipt,
-html[data-theme="aero"] .edited,
-html[data-theme="aero"] .sender { color: #20456b; text-shadow: 0 0 6px #fff, 0 0 2px #fff; }
-html[data-theme="aero"] .chat > .center > div { color: #20456b !important; text-shadow: 0 0 8px #fff, 0 0 3px #fff !important; }
+html[data-theme="aero"] .edited { color: var(--aero-light-sub); text-shadow: var(--aero-halo); }
+html[data-theme="aero"] .sender { color: #c9b4ff; text-shadow: var(--aero-halo); }
+html[data-theme="aero"] .chat > .center > div { color: var(--aero-light) !important; text-shadow: var(--aero-halo) !important; }
 
 /* bubbles: glass orbs instead of tailed gel (the tail carve needs a flat backdrop) */
 html[data-theme="aero"] .bubble.them::after,
@@ -162,7 +161,7 @@ html[data-theme="aero"] .bubble.me::before {
 }
 html[data-theme="aero"] .bubble.media::before { display: none; }
 html[data-theme="aero"] .bubble.them {
-  background: rgba(255,255,255,.72);
+  background: rgba(255,255,255,.86);
   -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
   border: 1px solid rgba(255,255,255,.95);
   color: #10223a;
@@ -177,7 +176,7 @@ html[data-theme="aero"] .bubble.me {
   box-shadow: inset 0 0 0 1px rgba(255,255,255,.35), 0 3px 10px rgba(0,60,140,.3);
 }
 html[data-theme="aero"] .bubble.me .voice .play { color: var(--blue-bot-ok); }
-html[data-theme="aero"] .unsent { color: #355a80; border-color: rgba(30,80,140,.35); background: rgba(255,255,255,.35); text-shadow: none; }
+html[data-theme="aero"] .unsent { color: var(--aero-light-sub); border-color: rgba(160,210,255,.35); background: rgba(255,255,255,.08); text-shadow: none; }
 html[data-theme="aero"] .typing i { background: #3d8fd6; }
 
 /* ----------------------------------------------------- composer */
@@ -188,8 +187,8 @@ html[data-theme="aero"] .composer .field {
 }
 html[data-theme="aero"] .composer .field:focus-within { border-color: #3d7bad; border-top-color: #2c628b; }
 html[data-theme="aero"] .editbar {
-  background: linear-gradient(rgba(240,248,255,.85), rgba(210,232,252,.85));
-  border-top-color: rgba(40,80,130,.35); color: var(--aero-ink);
+  background: linear-gradient(rgba(60,120,180,.45), rgba(25,65,110,.45));
+  border-top-color: rgba(0,0,0,.45); color: var(--aero-light); text-shadow: var(--aero-halo);
 }
 
 /* ----------------------------------------------------- Windows 7 buttons */
@@ -297,6 +296,10 @@ html[data-theme="aero"] .settings-scroll {
 html[data-theme="aero"] .toggle { color: #10223a; }
 html[data-theme="aero"] .card .muted { color: #24456a; text-shadow: 0 0 6px #fff; }
 html[data-theme="aero"] .settings-scroll .muted { text-shadow: none; }
+html[data-theme="aero"] .card .muted a, html[data-theme="aero"] .card .link { color: #0a4f9e; font-weight: 600; }
+/* Privacy · Terms under the sign-in window sit on the dark wallpaper */
+html[data-theme="aero"] .center > div > .muted { color: var(--aero-light-sub); text-shadow: var(--aero-halo); }
+html[data-theme="aero"] .center > div > .muted a { color: #bfe8ff; text-shadow: var(--aero-halo); }
 html[data-theme="aero"] .friend-row {
   border-radius: 4px; border-color: rgba(120,160,210,.6);
   background: linear-gradient(rgba(255,255,255,.95), rgba(236,245,253,.9));
@@ -341,5 +344,5 @@ html[data-theme="aero"] ::-webkit-scrollbar-thumb {
 /* ----------------------------------------------------- phones */
 @media (max-width: 720px) {
   /* the chat slides over the sidebar — give it its own glass so they don't mix */
-  html[data-theme="aero"] .chat { background: rgba(120,190,240,.35); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
+  html[data-theme="aero"] .chat { background: rgba(10,30,55,.55); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
 }

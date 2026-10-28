@@ -1,6 +1,10 @@
 # Lustre — Changelog
 
-Current version: **v1.3**
+Current version: **Beta 2**
+
+## Beta 2 — 2026-10-28
+- Aero mode — a Windows 7 Aero look with frosted glass over a glowing blue light-streak background (Settings → Appearance → Style)
+- Aero sound pack — water-drop bloops and glassy chimes
 
 ## v1.3 — 2026-10-28
 - Name suggestions pop up as you type in New Message and Add Friend
