@@ -7,7 +7,7 @@
    Until it's filled in, the GIF button stays hidden.
    ========================================================================= */
 
-export const GIPHY_API_KEY = "";
+export const GIPHY_API_KEY = "FkQXn3EMxQf3tpMOPXjv9CaM4FW9zib9";
 
 export const giphyReady = () => !!GIPHY_API_KEY;
 

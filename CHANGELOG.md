@@ -3,6 +3,7 @@
 Current version: **Beta 2.2**
 
 ## Beta 2.2 — 2026-10-28
+- Send GIFs — tap GIF next to Photo (powered by GIPHY)
 - Much lighter on the server — typing, read receipts, and online status check in far less often
 - Removed the “x active” counter
 - Chats open with your latest 50 messages
