@@ -182,10 +182,12 @@ function renderAuth() {
       el("span", { html: "I'm 13 or older and agree to the <a href='terms.html' target='_blank' class='link'>Terms</a> &amp; <a href='privacy.html' target='_blank' class='link'>Privacy Policy</a>." })]),
   ]);
 
-  const submit = el("button", { class: "btn blue", text: "Sign In" });
+  const submit = el("button", { class: "btn blue", type: "submit", text: "Sign In" });
   const toggle = el("span", { class: "link", text: "Create one" });
 
-  const card = el("div", { class: "card" }, [
+  // a real <form> so the browser's password manager pairs this username + password
+  // (and only these) — loose inputs elsewhere in the app get lumped in otherwise
+  const card = el("form", { class: "card", onsubmit: e => { e.preventDefault(); go(); } }, [
     el("h1", {}, ["Lustre", el("span", { class: "indev", text: VERSION_LABEL, title: "What's new", onclick: openChangelog })]),
     el("div", { class: "tag", text: "stay in touch — with a little shine" }),
     el("label", { text: "Username" }), username,
@@ -233,8 +235,6 @@ function renderAuth() {
       else await store.signUp(uname, pass.value, email.value.trim(), dob.value);
     } catch (e) { err.textContent = friendlyAuthError(e); submit.disabled = false; }
   }
-  submit.addEventListener("click", go);
-  [username, pass, email].forEach(i => i.addEventListener("keydown", e => e.key === "Enter" && go()));
 
   const extras = [];
   if (DEMO) {
@@ -258,17 +258,16 @@ function renderAuth() {
 function renderUnlock(user) {
   const err = el("div", { class: "err" });
   const pass = el("input", { class: "input", type: "password", placeholder: "Your password", autocomplete: "current-password" });
-  const btn = el("button", { class: "btn blue", text: "Unlock" });
+  const btn = el("button", { class: "btn blue", type: "submit", text: "Unlock" });
   const go = async () => {
     err.textContent = ""; btn.disabled = true;
     const ok = await store.unlock(pass.value);
     if (!ok) { err.textContent = "Wrong password — couldn’t unlock your messages."; btn.disabled = false; }
   };
-  btn.onclick = go;
-  pass.addEventListener("keydown", e => e.key === "Enter" && go());
-  const card = el("div", { class: "card" }, [
+  const card = el("form", { class: "card", onsubmit: e => { e.preventDefault(); go(); } }, [
     el("h1", {}, ["Lustre", el("span", { class: "indev", text: VERSION_LABEL, title: "What's new", onclick: openChangelog })]),
     el("div", { class: "tag", text: "Enter your password to unlock your encrypted messages on this device" }),
+    el("input", { type: "text", class: "hidden", autocomplete: "username", value: user?.username || "", tabindex: "-1", "aria-hidden": "true" }),
     el("label", { text: "Password" }), pass,
     err,
     el("div", { class: "row" }, [btn]),
@@ -295,7 +294,7 @@ function openChangelog() {
    ===================================================================== */
 function renderApp(user) {
   const convList = el("div", { class: "conv-list" });
-  const search = el("input", { class: "input", placeholder: "Search", oninput: e => filterConvs(e.target.value) });
+  const search = el("input", { class: "input", type: "search", placeholder: "Search", autocomplete: "off", oninput: e => filterConvs(e.target.value) });
   const newChatBtn = el("button", { class: "btn blue", text: "New Chat",
     onclick: () => $("#newChatOverlay").classList.add("show") });
   friendsBadgeEl = el("span", { class: "reqbadge hidden" });
@@ -423,7 +422,7 @@ function openConv(id) {
   const receiptEl = el("div", { class: "receipt hidden" });   // persistent; not rebuilt with bubbles
 
   /* ---- composer ---- */
-  const ta = el("textarea", { rows: 1, placeholder: "Message", oninput: onType });
+  const ta = el("textarea", { rows: 1, placeholder: "Message", autocomplete: "off", oninput: onType });
   const photoBtn = el("button", { class: "btn", text: "Photo", onclick: () => $("#imgInput").click() });
   const voiceBtn = el("button", { class: "btn", text: "Voice", onclick: toggleVoice });
   const sendBtn = el("button", { class: "btn blue", text: "Send", onclick: sendText });
@@ -579,7 +578,7 @@ function openConv(id) {
   // GIF picker (GIPHY): trending until you type, then search
   let gifPanel = null, gifOutside = null;
   function openGifs() {
-    const search = el("input", { class: "input", placeholder: "Search GIPHY", autocomplete: "off", spellcheck: "false" });
+    const search = el("input", { class: "input", type: "search", placeholder: "Search GIPHY", autocomplete: "off", spellcheck: "false" });
     const grid = el("div", { class: "gif-grid" });
     const note = el("div", { class: "gif-note" });
     gifPanel = el("div", { class: "gif-panel" }, [search, grid, note, el("div", { class: "gif-credit", text: "Powered by GIPHY" })]);
@@ -996,6 +995,7 @@ function wireChrome() {
   $("#setBio").addEventListener("input", paintProfileHints);
   $("#setViewCard").onclick = () => openProfileCard(store.me());
   $("#setChangePw").onclick = () => $("#pwArea").classList.toggle("hidden");
+  $("#pwArea").addEventListener("submit", e => { e.preventDefault(); $("#pwSave").click(); });
   $("#setWhatsNew").onclick = () => { $("#settingsOverlay").classList.remove("show"); openChangelog(); };
   $("#pwSave").onclick = async () => {
     const pw = $("#pwNew").value, errEl = $("#setErr");
@@ -1214,6 +1214,7 @@ function openSettings() {
   }
   $("#setName").value = u.name || "";
   $("#setUsername").value = u.username || "";
+  $("#pwUser").value = u.username || "";   // so a saved password lands under the right login
   $("#setBio").value = u.bio || "";
   $("#setEmail").value = u.email || "";
   paintProfileHints();

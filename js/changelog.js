@@ -5,6 +5,9 @@
    ========================================================================= */
 
 export const CHANGELOG = [
+  { version: "Beta 2.2.1", date: "2026-10-28", changes: [
+    "Chrome no longer offers to save GIF searches, friend names, or chat names as your login",
+  ]},
   { version: "Beta 2.2", date: "2026-10-28", changes: [
     "Send GIFs — tap GIF next to Photo (powered by GIPHY)",
     "Much lighter on the server — typing, read receipts, and online status check in far less often",

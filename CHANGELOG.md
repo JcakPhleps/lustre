@@ -1,6 +1,9 @@
 # Lustre — Changelog
 
-Current version: **Beta 2.2**
+Current version: **Beta 2.2.1**
+
+## Beta 2.2.1 — 2026-10-28
+- Chrome no longer offers to save GIF searches, friend names, or chat names as your login
 
 ## Beta 2.2 — 2026-10-28
 - Send GIFs — tap GIF next to Photo (powered by GIPHY)
