@@ -1,6 +1,12 @@
 # Lustre — Changelog
 
-Current version: **Beta 2**
+Current version: **Beta 2.1**
+
+## Beta 2.1 — 2026-10-28
+- Profile cards — tap someone’s picture or name to see their bio, @username, and whether they’re online
+- Settings → Profile: write a bio, change your username (once a week) and display name (3 times a week)
+- Edit and unsend now work for 5 minutes after sending
+- Unsending a message pops it with a little burst ✨
 
 ## Beta 2 — 2026-10-28
 - Aero mode — a Windows 7 Aero look with frosted glass over a glowing blue light-streak background (Settings → Appearance → Style)

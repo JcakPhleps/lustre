@@ -9,7 +9,31 @@ service cloud.firestore {
     // but only the owner can write their own profile.
     match /users/{uid} {
       allow read: if signedIn();
-      allow write: if signedIn() && request.auth.uid == uid;
+      allow create: if signedIn() && request.auth.uid == uid;
+      // no delete — recreating the profile would reset the change limits below
+      allow update: if signedIn() && request.auth.uid == uid && usernameOk() && nameOk() && bioOk();
+
+      function unchanged(f) { return request.resource.data.get(f, null) == resource.data.get(f, null); }
+      function weekSince(f) {
+        return resource.data.get(f, null) == null || request.time > resource.data[f] + duration.value(7, 'd');
+      }
+      // username: once a week, and only to a name this user has claimed in /usernames
+      function usernameOk() {
+        return (unchanged('username') && unchanged('usernameChangedAt'))
+          || (request.resource.data.usernameChangedAt == request.time && weekSince('usernameChangedAt')
+              && getAfter(/databases/$(database)/documents/usernames/$(request.resource.data.username)).data.uid == request.auth.uid);
+      }
+      // display name: 3 changes in a 7-day window that starts with the first change
+      function nameOk() {
+        let d = request.resource.data;
+        return (unchanged('name') && unchanged('nameChanges') && unchanged('nameWindowStart'))
+          || (weekSince('nameWindowStart')
+                ? (d.nameWindowStart == request.time && d.nameChanges == 1)
+                : (unchanged('nameWindowStart') && d.nameChanges == resource.data.get('nameChanges', 0) + 1 && d.nameChanges <= 3));
+      }
+      function bioOk() {
+        return !('bio' in request.resource.data) || (request.resource.data.bio is string && request.resource.data.bio.size() <= 160);
+      }
 
       // friend requests: requester drops one in the target's inbox; target reads/declines
       match /requests/{fromUid} {
@@ -24,6 +48,15 @@ service cloud.firestore {
                        || exists(/databases/$(database)/documents/users/$(uid)/friends/$(request.auth.uid)));
         allow write: if signedIn() && (request.auth.uid == uid || request.auth.uid == fid);
       }
+    }
+
+    // username → account lookup, so you can still sign in after renaming.
+    // Readable before sign-in (get only, no listing); one doc per name keeps names unique.
+    match /usernames/{name} {
+      allow get: if true;
+      allow create: if signedIn() && request.resource.data.uid == request.auth.uid
+                    && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.username == name;
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
     }
 
     // global presence — powers the "x active" counter
@@ -41,9 +74,10 @@ service cloud.firestore {
         allow read:   if isMember(get(/databases/$(database)/documents/conversations/$(cid)));
         allow create: if isMember(get(/databases/$(database)/documents/conversations/$(cid)))
                       && request.resource.data.from.uid == request.auth.uid;
-        // edit / unsend: only the sender, and they can't change who sent it or when
+        // edit / unsend: only the sender, only for 5 minutes, and they can't change who sent it or when
         allow update: if isMember(get(/databases/$(database)/documents/conversations/$(cid)))
                       && resource.data.from.uid == request.auth.uid
+                      && request.time < resource.data.ts + duration.value(5, 'm')
                       && request.resource.data.from == resource.data.from
                       && request.resource.data.ts == resource.data.ts;
       }

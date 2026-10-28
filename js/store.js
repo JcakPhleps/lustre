@@ -18,6 +18,40 @@ const uid = () => Math.random().toString(36).slice(2, 10);
 const initials = (name = "?") =>
   name.trim().split(/\s+/).map(w => w[0]).slice(0, 2).join("").toUpperCase() || "?";
 
+/* ---- profile change limits (firestore.rules enforces the same) ---- */
+const WEEK = 7 * 24 * 60 * 60 * 1000;
+export const NAME_CHANGES_PER_WEEK = 3;
+export const BIO_MAX = 160;
+const fmtDate = t => new Date(t).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+// display name: 3 changes in a 7-day window that starts with the first change
+export function nameLimit(u, t = now()) {
+  const fresh = !u.nameWindowStart || t > u.nameWindowStart + WEEK;
+  return { fresh, left: fresh ? NAME_CHANGES_PER_WEEK : Math.max(0, NAME_CHANGES_PER_WEEK - (u.nameChanges || 0)),
+    resetAt: fresh ? null : u.nameWindowStart + WEEK };
+}
+// username: once every 7 days
+export function usernameLimit(u, t = now()) {
+  const nextAt = u.usernameChangedAt ? u.usernameChangedAt + WEEK : 0;
+  return { ok: t > nextAt, nextAt };
+}
+function checkName(u, name) {
+  if (!name) throw new Error("Display name can’t be empty.");
+  if (name.length > 32) throw new Error("Display name can be at most 32 characters.");
+  const lim = nameLimit(u);
+  if (!lim.left) throw new Error(`You’ve changed your display name ${NAME_CHANGES_PER_WEEK} times this week — you can change it again on ${fmtDate(lim.resetAt)}.`);
+  return lim;
+}
+function checkUsername(u, uname) {
+  if (!/^[a-z0-9_.]{3,20}$/.test(uname)) throw new Error("Usernames are 3–20 characters: letters, numbers, _ or .");
+  const lim = usernameLimit(u);
+  if (!lim.ok) throw new Error(`You can change your username again on ${fmtDate(lim.nextAt)}.`);
+}
+const cleanBio = bio => {
+  const b = (bio || "").trim();
+  if (b.length > BIO_MAX) throw new Error(`Bio can be at most ${BIO_MAX} characters.`);
+  return b;
+};
+
 /* ---- free-tier media: encode to data URLs stored in Firestore (no Storage) ---- */
 function resizeToDataURL(file, maxDim = 1000, quality = 0.7) {
   return new Promise((resolve, reject) => {
@@ -72,20 +106,44 @@ class MockStore {
 
   async signIn(username) {
     const u = (username || "you").replace(/^@/, "");
-    this._login({ uid: "me", username: u.toLowerCase(), email: null, name: u });
+    this._login({ uid: "me", username: u.toLowerCase(), email: null, name: u, bio: "", createdAt: now() });
   }
   async signUp(username, _pass, email, _dob) {
     const u = (username || "you").replace(/^@/, "");
-    this._login({ uid: "me", username: u.toLowerCase(), email: email || null, name: u });
+    this._login({ uid: "me", username: u.toLowerCase(), email: email || null, name: u, bio: "", createdAt: now() });
   }
   async signOut() { this._user = null; this._authCbs.forEach(cb => cb(null)); }
-  async updateProfile({ name, email, photo }) {
+  async updateProfile({ name, email, photo, bio }) {
     if (!this._user) return;
-    if (name !== undefined) this._user.name = name;
-    if (email !== undefined) this._user.email = email || null;
-    if (photo !== undefined) this._user.photo = photo || null;
+    const u = this._user;
+    if (bio !== undefined) bio = cleanBio(bio);
+    if (name !== undefined && name !== u.name) {
+      const lim = checkName(u, name);
+      if (lim.fresh) { u.nameWindowStart = now(); u.nameChanges = 1; } else u.nameChanges++;
+      u.name = name;
+    }
+    if (bio !== undefined) u.bio = bio;
+    if (email !== undefined) u.email = email || null;
+    if (photo !== undefined) u.photo = photo || null;
+    this._authCbs.forEach(cb => cb(u));
+  }
+  async changeUsername(newName) {
+    const uname = newName.trim().toLowerCase().replace(/^@/, "");
+    if (uname === this._user.username) return;
+    checkUsername(this._user, uname);
+    this._user.username = uname; this._user.usernameChangedAt = now();
     this._authCbs.forEach(cb => cb(this._user));
   }
+  // demo people: look them up from the sample chats
+  async fetchProfile(id) {
+    if (id === "me" || id === this._user?.uid) return { ...this._user, createdAt: this._user.createdAt };
+    const m = this._convs.flatMap(c => c.members).find(m => m.uid === id)
+      || (this._friends || []).find(f => f.uid === id) || { name: id.replace(/^demo-/, "") };
+    const name = m.name || m.username;
+    return { uid: id, name, username: m.username || name.split(" ")[0].toLowerCase(),
+      bio: "just here for the group chats ✌️", createdAt: now() - 40 * 86400000 };
+  }
+  async isOnline(id) { return this._convs.some(c => c.online && c.type === "dm" && c.members[0]?.uid === id); }
   async changePassword() { /* demo: no-op */ }
   async processAvatar(file) { return await resizeToDataURL(file, 160, 0.82); }
   async getProfile() { return {}; }
@@ -276,8 +334,12 @@ class FirebaseStore {
 
   async _handleAuth(u, password) {
     const prof = await this._loadProfile(u);
+    const ms = ts => ts?.toMillis?.() || null;
     this._user = { uid: u.uid, username: prof.username, name: prof.name || prof.username,
-      email: prof.email || null, photo: prof.photo || null, pubKey: prof.pubKey || null };
+      email: prof.email || null, photo: prof.photo || null, pubKey: prof.pubKey || null,
+      bio: prof.bio || "", createdAt: ms(prof.createdAt),
+      usernameChangedAt: ms(prof.usernameChangedAt), nameWindowStart: ms(prof.nameWindowStart), nameChanges: prof.nameChanges || 0 };
+    this._claimUsername().catch(() => {});     // older accounts: add the username → login lookup
     await this._setupKeys(password);
     this._authCbs.forEach(cb => cb(this._user));
     if (this._user) this._presenceHeartbeat();
@@ -330,10 +392,26 @@ class FirebaseStore {
     return snap.data();
   }
 
+  // After a username change the login email stays the same, so look up which
+  // login the username belongs to (usernames/{name}); fall back to the derived one.
+  async _loginEmailFor(username) {
+    const uname = username.trim().toLowerCase().replace(/^@/, "");
+    try {
+      const s = await this._fs.getDoc(this._fs.doc(this.db, "usernames", uname));
+      if (s.exists() && s.data().authEmail) return s.data().authEmail;
+    } catch {}
+    return this._emailFor(uname);
+  }
   async signIn(username, pass) {
     this._authBusy = true;
     try {
-      const cred = await this._auth.signInWithEmailAndPassword(this.auth, this._emailFor(username), pass);
+      const email = await this._loginEmailFor(username);
+      let cred;
+      try { cred = await this._auth.signInWithEmailAndPassword(this.auth, email, pass); }
+      catch (e) {
+        if (email === this._emailFor(username)) throw e;
+        cred = await this._auth.signInWithEmailAndPassword(this.auth, this._emailFor(username), pass);
+      }
       await this._handleAuth(cred.user, pass);
     } finally { this._authBusy = false; }
   }
@@ -341,7 +419,19 @@ class FirebaseStore {
     this._authBusy = true;
     try {
       const uname = username.trim().toLowerCase();
-      const cred = await this._auth.createUserWithEmailAndPassword(this.auth, this._emailFor(uname), pass);
+      let claim = null;
+      try { claim = await this._fs.getDoc(this._fs.doc(this.db, "usernames", uname)); } catch {}
+      if (claim?.exists()) throw new Error("That username is already taken.");
+      let cred;
+      try { cred = await this._auth.createUserWithEmailAndPassword(this.auth, this._emailFor(uname), pass); }
+      catch (e) {
+        if (!String(e.code).includes("email-already-in-use")) throw e;
+        // that login belongs to someone who has since renamed (or an older account):
+        // make a fresh login id, then make sure nobody actually has the name
+        cred = await this._auth.createUserWithEmailAndPassword(this.auth, `${uname}+${Date.now().toString(36)}@lustre.app`, pass);
+        const held = await this._fs.getDocs(this._fs.query(this._fs.collection(this.db, "users"), this._fs.where("username", "==", uname)));
+        if (!held.empty) { await cred.user.delete(); throw e; }
+      }
       await this._auth.updateProfile(cred.user, { displayName: uname });
       await this._fs.setDoc(this._fs.doc(this.db, "users", cred.user.uid),
         { username: uname, name: uname, email: realEmail || null, dob: dob || null, createdAt: this._fs.serverTimestamp() });
@@ -354,17 +444,83 @@ class FirebaseStore {
     if (uid) try { await E2E.clearDeviceKey(uid); } catch {}   // wipe device key (shared computers)
     await this._auth.signOut(this.auth);
   }
-  async updateProfile({ name, email, photo }) {
-    const patch = {};
-    if (name !== undefined) patch.name = name;
+  async updateProfile({ name, email, photo, bio }) {
+    const u = this._user, patch = {};
+    let nameLim = null;
+    if (name !== undefined && name !== u.name) {
+      nameLim = checkName(u, name);
+      patch.name = name;
+      if (nameLim.fresh) { patch.nameWindowStart = this._fs.serverTimestamp(); patch.nameChanges = 1; }
+      else patch.nameChanges = this._fs.increment(1);
+    }
+    if (bio !== undefined) patch.bio = cleanBio(bio);
     if (email !== undefined) patch.email = email || null;
     if (photo !== undefined) patch.photo = photo || null;
-    if (Object.keys(patch).length) await this._fs.updateDoc(this._fs.doc(this.db, "users", this._user.uid), patch);
-    if (name !== undefined) this._user.name = name;
-    if (email !== undefined) this._user.email = email || null;
-    if (photo !== undefined) this._user.photo = photo || null;
-    this._profileCache.delete(this._user.uid);
-    this._authCbs.forEach(cb => cb(this._user));
+    if (Object.keys(patch).length) await this._fs.updateDoc(this._fs.doc(this.db, "users", u.uid), patch);
+    if (nameLim) {
+      u.name = name;
+      if (nameLim.fresh) { u.nameWindowStart = now(); u.nameChanges = 1; } else u.nameChanges++;
+    }
+    if (bio !== undefined) u.bio = patch.bio;
+    if (email !== undefined) u.email = email || null;
+    if (photo !== undefined) u.photo = photo || null;
+    this._profileCache.delete(u.uid);
+    this._authCbs.forEach(cb => cb(u));
+  }
+
+  // claim a username in the login lookup (signup, older accounts, renames)
+  async _claimUsername() {
+    const ref = this._fs.doc(this.db, "usernames", this._user.username);
+    const s = await this._fs.getDoc(ref);
+    if (!s.exists()) await this._fs.setDoc(ref, { uid: this._user.uid, authEmail: this.auth.currentUser.email });
+  }
+  async _usernameTaken(uname) {
+    try {
+      const claim = await this._fs.getDoc(this._fs.doc(this.db, "usernames", uname));
+      if (claim.exists() && claim.data().uid !== this._user.uid) return true;
+    } catch {}
+    const held = await this._fs.getDocs(this._fs.query(this._fs.collection(this.db, "users"), this._fs.where("username", "==", uname)));
+    return held.docs.some(d => d.id !== this._user.uid);
+  }
+  // rename: claim the new name, free the old one, and stamp the change — all at once
+  async changeUsername(newName) {
+    const u = this._user, uname = newName.trim().toLowerCase().replace(/^@/, "");
+    if (uname === u.username) return;
+    checkUsername(u, uname);
+    if (await this._usernameTaken(uname)) throw new Error(`@${uname} is already taken.`);
+    const batch = this._fs.writeBatch(this.db);
+    batch.set(this._fs.doc(this.db, "usernames", uname), { uid: u.uid, authEmail: this.auth.currentUser.email });
+    try {
+      const oldRef = this._fs.doc(this.db, "usernames", u.username), old = await this._fs.getDoc(oldRef);
+      if (old.exists() && old.data().uid === u.uid) batch.delete(oldRef);
+    } catch {}
+    batch.update(this._fs.doc(this.db, "users", u.uid), { username: uname, usernameChangedAt: this._fs.serverTimestamp() });
+    try { await batch.commit(); }
+    catch (e) {
+      if (String(e.code).includes("permission-denied"))
+        throw new Error("Username changes need the latest Firebase rules — publish firestore.rules, then try again.");
+      throw e;
+    }
+    try { await this._auth.updateProfile(this.auth.currentUser, { displayName: uname }); } catch {}
+    u.username = uname; u.usernameChangedAt = now();
+    this._profileCache.delete(u.uid);
+    this._authCbs.forEach(cb => cb(u));
+  }
+
+  // fresh copy of someone's profile (for the profile card); refreshes the cache too
+  async fetchProfile(id) {
+    const s = await this._fs.getDoc(this._fs.doc(this.db, "users", id));
+    const d = s.exists() ? s.data() : {};
+    this._profileCache.set(id, Promise.resolve(d));
+    return { uid: id, name: d.name || d.username, username: d.username, photo: d.photo || null,
+      bio: d.bio || "", createdAt: d.createdAt?.toMillis?.() || null };
+  }
+  // online = their "x active" heartbeat is recent
+  async isOnline(id) {
+    try {
+      const s = await this._fs.getDoc(this._fs.doc(this.db, "presence_global", id));
+      return s.exists() && (s.data().at?.toMillis?.() || 0) >= Date.now() - 65000;
+    } catch { return false; }
   }
   async changePassword(newPass) {
     await this._auth.updatePassword(this.auth.currentUser, newPass);

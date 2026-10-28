@@ -69,9 +69,15 @@
         </div>
         <div class="pfp-presets" id="setPfpPresets"></div>
         <label>Display name</label>
-        <input class="input" id="setName" />
-        <label>Recovery email <span class="opt">(optional)</span></label>
-        <input class="input" id="setEmail" type="email" placeholder="you@email.com" autocapitalize="none" spellcheck="false" />
+        <input class="input" id="setName" maxlength="32" />
+        <div class="hint" id="setNameHint"></div>
+        <label>Username</label>
+        <div class="userfield"><span>@</span><input class="input" id="setUsername" maxlength="20" autocapitalize="none" spellcheck="false" /></div>
+        <div class="hint" id="setUsernameHint"></div>
+        <label>Bio <span class="opt">(optional)</span></label>
+        <textarea class="input" id="setBio" rows="3" maxlength="160" placeholder="A little about you…"></textarea>
+        <div class="hint" id="setBioHint"></div>
+        <button class="btn" id="setViewCard" style="width:100%;margin-top:10px">View my profile card</button>
 
         <div class="sectionhead">Appearance</div>
         <label>Style</label>
@@ -94,6 +100,8 @@
         <div class="segmented" id="setPack"></div>
 
         <div class="sectionhead">Account</div>
+        <label style="margin-top:0">Recovery email <span class="opt">(optional)</span></label>
+        <input class="input" id="setEmail" type="email" placeholder="you@email.com" autocapitalize="none" spellcheck="false" style="margin-bottom:10px" />
         <button class="btn" id="setChangePw" style="width:100%">Change password…</button>
         <div id="pwArea" class="hidden" style="margin-top:8px">
           <input class="input" id="pwNew" type="password" placeholder="New password (6+ characters)" />

@@ -305,7 +305,13 @@ html[data-theme="aero"] .friend-row {
   background: linear-gradient(rgba(255,255,255,.95), rgba(236,245,253,.9));
 }
 html[data-theme="aero"] .err { text-shadow: 0 0 6px #fff; }
-html[data-theme="aero"] #setWallRow { display: none; }   /* the glass replaces the wallpaper */
+html[data-theme="aero"] #setWallRow { display: none; }
+html[data-theme="aero"] .profile-card { padding-top: 0; }
+html[data-theme="aero"] .pc-banner { margin: 0 -16px -48px; }
+html[data-theme="aero"] .profile-card .avatar.xl { border: 0; box-shadow: 0 0 0 4px rgba(255,255,255,.95), 0 0 0 5px rgba(60,110,170,.45), 0 4px 12px rgba(0,30,70,.4); }
+html[data-theme="aero"] .pc-name { color: #10223a; font-weight: 600; text-shadow: 0 0 10px #fff, 0 0 4px #fff; }
+html[data-theme="aero"] .pc-user, html[data-theme="aero"] .pc-since { color: #24456a; text-shadow: 0 0 6px #fff; }
+html[data-theme="aero"] .pc-bio { border-radius: 4px; border-color: rgba(60,100,150,.45); }   /* the glass replaces the wallpaper */
 
 /* ----------------------------------------------------- menus & popups */
 /* Windows 7 context menu: light panel, icon gutter, rounded blue hover */
