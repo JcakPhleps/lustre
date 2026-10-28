@@ -1,0 +1,617 @@
+/* =========================================================================
+   Lustre — a 2012-era skeuomorphic chat app
+   -------------------------------------------------------------------------
+   The look: iOS 6 / OS X Mountain Lion Messages + a dash of 2012 Facebook.
+   Linen, brushed metal, glossy gradient bubbles, letterpressed labels.
+   No external assets — every texture is pure CSS so it stays portable.
+   ========================================================================= */
+
+/* ----------------------------------------------------------------- reset */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  /* type */
+  --font: "Helvetica Neue", "Lucida Grande", Helvetica, Arial, sans-serif;
+
+  /* the famous iMessage blue (glossy) */
+  --blue-top: #45a5ff;
+  --blue-mid: #1e8bff;
+  --blue-bot-ok: #0a6cff;
+
+  /* chrome */
+  --metal-top: #fbfbfb;
+  --metal-bot: #c4c4c8;
+  --metal-line: #9a9a9e;
+  --hairline: rgba(0,0,0,.35);
+  --emboss: rgba(255,255,255,.75);
+
+  /* linen */
+  --linen: #c9c5bd;
+  --linen-dark: #a7a299;
+  --transcript: #bcb8af;   /* average linen tone — used to carve bubble tails */
+
+  --radius-bubble: 19px;
+}
+
+html, body {
+  height: 100%;
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+  color: #222;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* =====================================================================
+   TEXTURES
+   ===================================================================== */
+
+/* iOS 6 "linen" — layered diagonal threads over a warm gray */
+.linen {
+  background-color: var(--linen);
+  background-image:
+    repeating-linear-gradient( 45deg, rgba(255,255,255,.035) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(-45deg, rgba(0,0,0,.05) 0 1px, transparent 1px 3px),
+    linear-gradient(rgba(0,0,0,.04), rgba(0,0,0,.14));
+}
+
+/* brushed-aluminum toolbar, OS X Lion style */
+.metal {
+  background:
+    repeating-linear-gradient(90deg, rgba(255,255,255,.14) 0 1px, rgba(0,0,0,.015) 1px 2px),
+    linear-gradient(var(--metal-top), #e6e6e9 48%, #d2d2d6 52%, var(--metal-bot));
+  border-bottom: 1px solid var(--metal-line);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 1px 2px rgba(0,0,0,.2);
+}
+
+/* pinstriped sidebar, like the OS X Messages buddy list */
+.pinstripe {
+  background-color: #dfe3ea;
+  background-image:
+    repeating-linear-gradient(0deg, rgba(255,255,255,.45) 0 1px, rgba(0,0,0,.02) 1px 2px),
+    linear-gradient(#e9edf3, #d4dae3);
+}
+
+/* =====================================================================
+   APP SHELL
+   ===================================================================== */
+
+#app { height: 100%; display: flex; flex-direction: column; }
+
+/* ---- the two-pane body ---- */
+.body { flex: 1; display: flex; min-height: 0; }
+
+/* ---- sidebar brand (the Lustre wordmark) ---- */
+.brand {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 16px 10px 2px;
+  font-size: 30px; font-weight: 800; letter-spacing: -.5px;
+  color: #4a4e57;
+  text-shadow: 0 1px 0 rgba(255,255,255,.9), 0 2px 4px rgba(0,0,0,.12);
+}
+
+/* "x active" counter under the wordmark */
+.active-line {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 2px 0 10px;
+  border-bottom: 1px solid rgba(0,0,0,.1);
+  box-shadow: 0 1px 0 rgba(255,255,255,.55);
+}
+.active-dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #b6ff7a, #46c923 60%, #2f9c16);
+  box-shadow: 0 0 4px rgba(70,201,35,.75), inset 0 1px 0 rgba(255,255,255,.5);
+}
+.active-count { font-size: 12px; font-weight: 700; color: #6b7178; text-shadow: 0 1px 0 rgba(255,255,255,.6); }
+
+/* blue "new message" dot on a conversation row */
+.newdot {
+  width: 12px; height: 12px; flex: 0 0 12px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #9fd0ff, #2d9bff 55%, #0a6cff);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 0 4px rgba(10,108,255,.6);
+}
+.conv.active .newdot { background: radial-gradient(circle at 35% 30%, #fff, #cfe3ff 55%, #bcd8ff); box-shadow: inset 0 1px 0 rgba(255,255,255,.8); }
+/* a little glossy gem beside the wordmark */
+.brand .spark {
+  width: 20px; height: 20px; border-radius: 6px;
+  background: linear-gradient(#bfe0ff, #3f9bff 55%, #0a6cff);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.85), inset 0 -2px 4px rgba(0,0,0,.25), 0 1px 2px rgba(0,0,0,.3);
+}
+
+/* ---- New Chat / Settings buttons ---- */
+.sidebar-actions {
+  display: flex; gap: 8px; padding: 10px;
+  border-bottom: 1px solid rgba(0,0,0,.1);
+  box-shadow: 0 1px 0 rgba(255,255,255,.5);
+}
+.sidebar-actions .btn { flex: 1; text-align: center; padding: 8px; position: relative; }
+
+/* the little "indev" tag next to the wordmark */
+.wordmark { display: inline-flex; align-items: flex-start; }
+.indev {
+  font-size: 10px; font-weight: 700; letter-spacing: .3px; text-transform: lowercase;
+  color: #b07d16; background: linear-gradient(#fffdf6, #f0e3c6);
+  border: 1px solid #d9c38f; border-radius: 5px;
+  padding: 1px 4px; margin-left: 6px; margin-top: 3px;
+  text-shadow: 0 1px 0 rgba(255,255,255,.85);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.7);
+}
+
+/* pending-request count badge on the Friends button */
+.reqbadge {
+  display: inline-block; margin-left: 6px; padding: 0 5px;
+  min-width: 16px; height: 16px; line-height: 16px; border-radius: 8px;
+  background: linear-gradient(#ff6a6a, #e01e1e); color: #fff;
+  font-size: 10px; font-weight: 700; text-shadow: 0 1px 1px rgba(0,0,0,.3);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.4), 0 1px 1px rgba(0,0,0,.25);
+}
+
+/* friends dialog */
+.sectionhead { font-size: 12px; font-weight: 700; color: #8a8f97; text-shadow: 0 1px 0 #fff; margin: 16px 0 6px; }
+.friendlist { max-height: 230px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+.friend-row {
+  display: flex; align-items: center; gap: 9px; padding: 6px 8px;
+  border: 1px solid rgba(0,0,0,.1); border-radius: 9px;
+  background: linear-gradient(#fff, #f1f3f6); box-shadow: inset 0 1px 0 #fff;
+}
+.friend-row .btn { padding: 5px 10px; font-size: 12px; }
+.friend-name { flex: 1; min-width: 0; }
+.friend-name > div:first-child { font-weight: 700; font-size: 13px; color: #2a2a2c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.friend-sub { font-size: 11px; color: #8a8f97; }
+/* username autocomplete */
+.suggest-wrap { position: relative; flex: 1; }
+.suggest {
+  position: absolute; left: 0; right: 0; top: calc(100% + 3px); z-index: 60;
+  max-height: 260px; overflow-y: auto; padding: 4px;
+  background: linear-gradient(#fff, #f3f5f8); border: 1px solid #a7abb2; border-radius: 9px;
+  box-shadow: 0 6px 18px rgba(0,0,0,.25), inset 0 1px 0 #fff;
+}
+.suggest-item { display: flex; align-items: center; gap: 9px; padding: 5px 7px; border-radius: 6px; cursor: pointer; }
+.suggest-item:hover, .suggest-item.sel { background: linear-gradient(#e3efff, #cfe2fb); }
+.suggest-tag {
+  font-size: 10px; font-weight: 700; color: #2f7d16; padding: 1px 6px; border-radius: 8px;
+  background: #e2f5da; border: 1px solid #b9e3a8; white-space: nowrap;
+}
+.friend-mutual { font-size: 11px; color: #8a8f97; margin-right: 2px; white-space: nowrap; }
+
+/* settings panel */
+.settings-card { width: 430px; }
+.settings-scroll { max-height: 60vh; overflow-y: auto; padding-right: 6px; }
+.opt { font-weight: 400; color: #9aa0a8; }
+.toggle { display: flex; align-items: center; gap: 9px; cursor: pointer; font-weight: 400; margin: 10px 0; color: #333; }
+.toggle input { width: 16px; height: 16px; }
+.swatches { display: flex; gap: 8px; flex-wrap: wrap; }
+.swatch {
+  width: 30px; height: 30px; border-radius: 8px; cursor: pointer; position: relative;
+  border: 1px solid rgba(0,0,0,.3);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.5), 0 1px 2px rgba(0,0,0,.25);
+}
+.swatch.sel::after {
+  content: "✓"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 15px; font-weight: 800; text-shadow: 0 1px 2px rgba(0,0,0,.7);
+}
+.segmented { display: inline-flex; border: 1px solid #9a9ea5; border-radius: 8px; overflow: hidden; box-shadow: inset 0 1px 0 rgba(255,255,255,.7); }
+.segmented button {
+  border: none; border-left: 1px solid #b7bbc1; cursor: pointer;
+  background: linear-gradient(#fdfdfd, #e2e4e8);
+  font-family: var(--font); font-size: 12px; font-weight: 700; color: #444; padding: 7px 14px;
+  text-shadow: 0 1px 0 rgba(255,255,255,.8);
+}
+.segmented button:first-child { border-left: none; }
+.segmented button.sel { background: linear-gradient(var(--blue-mid), var(--blue-bot-ok)); color: #fff; text-shadow: 0 -1px 0 rgba(0,0,0,.3); }
+
+/* profile pictures */
+.avatar.has-img { background-size: cover; background-position: center; }
+.avatar.emoji { font-size: 20px; }
+.avatar.sm.emoji { font-size: 15px; }
+.avatar.lg { width: 64px; height: 64px; flex-basis: 64px; border-radius: 15px; font-size: 26px; }
+.avatar.lg.emoji { font-size: 34px; }
+.pfp-edit { display: flex; align-items: center; gap: 14px; margin-bottom: 8px; }
+.pfp-controls { display: flex; flex-direction: column; gap: 6px; }
+.pfp-controls .btn { padding: 6px 12px; }
+.pfp-presets { display: flex; flex-wrap: wrap; gap: 7px; }
+.pfp-choice { cursor: pointer; }
+.pfp-choice.sel { outline: 3px solid var(--blue-mid); outline-offset: 1px; }
+
+/* changelog */
+.changelog-list { margin: 2px 0 12px 20px; }
+.changelog-list li { font-size: 13px; color: #444; margin: 4px 0; line-height: 1.35; }
+
+/* sidebar / conversation list */
+.sidebar {
+  width: 300px; flex: 0 0 300px;
+  display: flex; flex-direction: column;
+  border-right: 1px solid #9ea6b3;
+  min-height: 0;
+}
+.sidebar .search {
+  padding: 8px; border-bottom: 1px solid rgba(0,0,0,.12);
+  box-shadow: 0 1px 0 rgba(255,255,255,.6);
+}
+.conv-list { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+
+/* a conversation row */
+.conv {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px;
+  border-bottom: 1px solid rgba(0,0,0,.08);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.5);
+  cursor: pointer;
+}
+.conv:hover { background: rgba(255,255,255,.3); }
+.conv.active {
+  background: linear-gradient(#5f9bec, #3f7fe0);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.4), inset 0 -1px 0 rgba(0,0,0,.2);
+  border-bottom-color: rgba(0,0,0,.25);
+}
+.conv.active .conv-name,
+.conv.active .conv-last,
+.conv.active .conv-time { color: #fff; text-shadow: 0 1px 1px rgba(0,0,0,.3); }
+.conv-body { flex: 1; min-width: 0; }
+.conv-top { display: flex; justify-content: space-between; align-items: baseline; }
+.conv-name { font-weight: 700; font-size: 14px; color: #2a2a2c; text-shadow: 0 1px 0 var(--emboss); }
+.conv-time { font-size: 11px; color: #7a8089; }
+.conv-last {
+  font-size: 12px; color: #6b7178; margin-top: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.conv .badge {
+  background: linear-gradient(#ff5e5e, #e01e1e);
+  color: #fff; font-size: 11px; font-weight: 700;
+  min-width: 20px; height: 20px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 6px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.5), 0 1px 1px rgba(0,0,0,.3);
+}
+
+/* avatars */
+.avatar {
+  width: 40px; height: 40px; border-radius: 9px; flex: 0 0 40px;
+  background: linear-gradient(#b7c0cc, #8c97a6);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-weight: 700; font-size: 16px;
+  text-shadow: 0 1px 1px rgba(0,0,0,.35);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.6), inset 0 -2px 3px rgba(0,0,0,.2), 0 1px 1px rgba(0,0,0,.25);
+  position: relative;
+}
+.avatar.sm { width: 30px; height: 30px; flex-basis: 30px; border-radius: 7px; font-size: 13px; }
+/* the green "online" dot */
+.avatar .dot {
+  position: absolute; right: -3px; bottom: -3px;
+  width: 13px; height: 13px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #b6ff7a, #46c923 60%, #2f9c16);
+  border: 2px solid #fff;
+  box-shadow: 0 1px 2px rgba(0,0,0,.4);
+  display: none;
+}
+.avatar.online .dot { display: block; }
+
+/* =====================================================================
+   CHAT PANE
+   ===================================================================== */
+.chat { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; position: relative; }
+
+/* conversation header (brushed) */
+.chat-head {
+  flex: 0 0 56px; height: 56px;
+  display: flex; align-items: center; gap: 10px; padding: 0 12px;
+}
+.chat-head .who { flex: 1; min-width: 0; }
+.chat-head .name { font-size: 15px; font-weight: 700; color: #2a2a2c; text-shadow: 0 1px 0 var(--emboss); }
+.chat-head .status { font-size: 12px; color: #6b7178; }
+.chat-head .status.here { color: #2f9c16; font-weight: 600; }
+
+/* the message scroll area, on linen */
+.messages {
+  flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch;
+  padding: 14px 22px 6px;
+  /* flat, uniform linen so the tail's carve can match it exactly (no shade/patch) */
+  background-color: var(--linen);
+  background-image:
+    repeating-linear-gradient( 45deg, rgba(255,255,255,.04) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(-45deg, rgba(0,0,0,.05) 0 1px, transparent 1px 3px);
+}
+
+/* a message row */
+.msg { display: flex; margin: 2px 0; align-items: flex-end; gap: 8px; }
+.msg.mine { flex-direction: row-reverse; }
+.msg .stack { max-width: 72%; display: flex; flex-direction: column; }
+.msg.mine .stack { align-items: flex-end; }
+
+/* day / time separators */
+.daystamp {
+  text-align: center; font-size: 11px; font-weight: 700;
+  color: #6c6660; text-shadow: 0 1px 0 rgba(255,255,255,.5);
+  margin: 14px 0 8px;
+}
+
+/* ---- THE BUBBLE ---- glossy gel with a real iMessage tail ---- */
+.bubble {
+  position: relative;
+  padding: 9px 14px; border-radius: var(--radius-bubble);
+  font-size: var(--bubble-size, 14.5px); line-height: 1.32; word-wrap: break-word;
+}
+/* incoming — pale gray gel. The gradient gives a glossy highlight in the top
+   18px, then settles to a FLAT --tail colour so body + tail are one shade. */
+.bubble.them {
+  --tail: #d9dbe0;
+  background: linear-gradient(#f4f5f7, var(--tail) 18px);
+  color: #1a1a1a;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.95), 0 1px 1.5px rgba(0,0,0,.18);
+}
+/* outgoing — glossy blue gel, same idea */
+.bubble.me {
+  --tail: var(--blue-bot-ok);
+  background: linear-gradient(var(--blue-top), var(--tail) 18px);
+  color: #fff; text-shadow: 0 1px 1px rgba(0,0,0,.22);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.45), 0 1px 1.5px rgba(0,0,0,.24);
+}
+
+/* the tail: a block in the bubble's bottom colour … */
+.bubble.them::before, .bubble.me::before {
+  content: ""; position: absolute; bottom: 0; width: 19px; height: 18px;
+  background: var(--tail);
+}
+.bubble.them::before { left: -7px;  border-bottom-right-radius: 16px; }
+.bubble.me::before   { right: -7px; border-bottom-left-radius: 16px; }
+
+/* … carved into a hook by a block the EXACT colour of the flat linen,
+   so there's no visible patch — bubble + tail read as one shape */
+.bubble.them::after, .bubble.me::after {
+  content: ""; position: absolute; bottom: 0; width: 13px; height: 19px;
+  background: var(--linen);
+}
+.bubble.them::after { left: -13px;  border-bottom-right-radius: 11px; }
+.bubble.me::after   { right: -13px; border-bottom-left-radius: 11px; }
+/* sender name in group chats */
+.sender { font-size: 11px; font-weight: 700; color: #8a56c0; margin: 2px 6px 1px; }
+
+/* image & voice in bubbles */
+.bubble.media { padding: 4px; }
+.bubble.media img { display: block; max-width: 220px; border-radius: 13px; cursor: zoom-in; }
+
+/* voice message */
+.voice { display: flex; align-items: center; gap: 9px; min-width: 150px; }
+.voice .play {
+  width: 30px; height: 30px; border-radius: 50%; flex: 0 0 30px;
+  border: none; cursor: pointer;
+  background: linear-gradient(#fdfdfd, #d7dade);
+  box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgba(0,0,0,.3);
+  color: #333; font-size: 13px;
+}
+.bubble.me .voice .play { background: linear-gradient(#fff, #cfe3ff); color: #0a6cff; }
+.voice .wave { flex: 1; height: 22px; display: flex; align-items: center; gap: 2px; }
+.voice .wave i {
+  flex: 1; background: currentColor; border-radius: 1px; opacity: .55;
+  height: 30%;
+}
+.bubble.me .voice { color: #fff; }
+.bubble.them .voice { color: #555; }
+.voice .dur { font-size: 11px; opacity: .8; }
+
+/* read receipt / delivered line */
+.receipt { font-size: 11px; color: #8a9099; margin: 1px 6px 8px; text-align: right; }
+
+/* edit / unsend */
+.unsent {
+  font-size: 12.5px; font-style: italic; color: #7a8089; text-shadow: 0 1px 0 var(--emboss);
+  padding: 6px 12px; border: 1px dashed rgba(0,0,0,.18); border-radius: var(--radius-bubble);
+}
+.edited { font-size: 10.5px; color: #8a9099; margin: 1px 8px 0; text-shadow: 0 1px 0 var(--emboss); }
+.msg.mine .bubble { -webkit-touch-callout: none; }   /* long-press opens our menu, not iOS's */
+.msgmore {
+  align-self: center; display: none;
+  width: 24px; height: 24px; padding: 0; border-radius: 50%; cursor: pointer;
+  font-size: 14px; line-height: 20px; color: #6b7178;
+  border: 1px solid rgba(0,0,0,.15); background: linear-gradient(#fff, #e4e6ea);
+  box-shadow: inset 0 1px 0 #fff, 0 1px 1px rgba(0,0,0,.15);
+}
+@media (hover: hover) { .msg.mine:hover .msgmore { display: block; } }
+.msgmenu {
+  position: fixed; z-index: 1000; min-width: 140px; padding: 4px 0;
+  border-radius: 8px; border: 1px solid rgba(0,0,0,.25);
+  background: linear-gradient(rgba(255,255,255,.98), rgba(238,240,244,.98));
+  box-shadow: 0 6px 20px rgba(0,0,0,.28), inset 0 1px 0 #fff;
+}
+.msgmenu button {
+  display: block; width: 100%; text-align: left; cursor: pointer;
+  font-family: var(--font); font-size: 13.5px; color: #222;
+  padding: 7px 16px; border: 0; background: none;
+}
+.msgmenu button:hover { background: linear-gradient(var(--blue-mid), #0a6cff); color: #fff; }
+.msgmenu button.danger { color: #d0021b; }
+.msgmenu button.danger:hover { background: linear-gradient(#ff5a5a, #d0021b); color: #fff; }
+.editbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 5px 12px; font-size: 12px; font-weight: 700; color: #4a5560;
+  background: linear-gradient(#eef4fc, #dbe6f3); border-top: 1px solid rgba(0,0,0,.15);
+  text-shadow: 0 1px 0 rgba(255,255,255,.8);
+}
+.editbar .btn { padding: 3px 10px; font-size: 12px; }
+
+/* the "typing…" bubble */
+.typing { display: inline-flex; gap: 4px; padding: 12px 15px; }
+.typing i {
+  width: 8px; height: 8px; border-radius: 50%; background: #9aa0a8;
+  animation: blink 1.2s infinite both;
+}
+.typing i:nth-child(2) { animation-delay: .2s; }
+.typing i:nth-child(3) { animation-delay: .4s; }
+@keyframes blink { 0%,60%,100%{opacity:.25; transform:translateY(0)} 30%{opacity:1; transform:translateY(-3px)} }
+
+/* =====================================================================
+   COMPOSER
+   ===================================================================== */
+.composer {
+  flex: 0 0 auto; padding: 8px 10px;
+  display: flex; align-items: flex-end; gap: 8px;
+}
+.composer .field {
+  flex: 1; min-width: 0;   /* let it shrink so Send fits on phones */
+  display: flex; align-items: center; gap: 6px;
+  background: linear-gradient(#f3f3f3, #ffffff);
+  border: 1px solid #a7abb2; border-radius: 17px;
+  padding: 3px 4px 3px 12px;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,.18), 0 1px 0 rgba(255,255,255,.8);
+}
+.composer textarea {
+  flex: 1; min-width: 0; border: none; outline: none; resize: none; background: transparent;
+  font-family: var(--font); font-size: 14.5px; line-height: 1.3;
+  max-height: 96px; padding: 5px 0; color: #222;
+}
+.composer textarea::placeholder { color: #9aa0a8; }
+
+/* =====================================================================
+   GLOSSY BUTTONS (the stars of 2012)
+   ===================================================================== */
+.btn {
+  font-family: var(--font); font-size: 13px; font-weight: 700;
+  color: #333; text-shadow: 0 1px 0 rgba(255,255,255,.8);
+  padding: 6px 14px; border-radius: 8px; cursor: pointer;
+  border: 1px solid #9a9ea5;
+  background: linear-gradient(#ffffff, #e2e4e8 48%, #d2d5da 52%, #cacdd3);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 1px 1px rgba(0,0,0,.25);
+}
+.btn:active { background: linear-gradient(#cacdd3, #d2d5da 48%, #e2e4e8 52%, #fff); box-shadow: inset 0 1px 3px rgba(0,0,0,.3); }
+
+/* blue / primary (aqua) */
+.btn.blue {
+  color: #fff; text-shadow: 0 -1px 0 rgba(0,0,0,.35); border-color: #0a5ccc;
+  background: linear-gradient(var(--blue-top), var(--blue-mid) 48%, var(--blue-bot-ok) 52%, #065ad6);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.5), 0 1px 2px rgba(0,0,0,.3);
+}
+.btn.blue:active { background: linear-gradient(#065ad6, var(--blue-bot-ok) 48%, var(--blue-mid) 52%, var(--blue-top)); }
+
+/* green send */
+.btn.green {
+  color: #fff; text-shadow: 0 -1px 0 rgba(0,0,0,.3); border-color: #2f8a16;
+  background: linear-gradient(#a6ec6e, #63c62f 48%, #4fb01f 52%, #3f9417);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.55), 0 1px 2px rgba(0,0,0,.3);
+}
+.btn.green:active { background: linear-gradient(#3f9417, #4fb01f 48%, #63c62f 52%, #a6ec6e); }
+
+.btn.red {
+  color:#fff; text-shadow:0 -1px 0 rgba(0,0,0,.3); border-color:#b01717;
+  background: linear-gradient(#ff7b7b, #e62d2d 48%, #cf1f1f 52%, #b01717);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.4), 0 1px 2px rgba(0,0,0,.3);
+}
+.btn[disabled] { opacity: .5; cursor: default; }
+
+/* little icon button in toolbars */
+.iconbtn {
+  width: 34px; height: 30px; border-radius: 7px; cursor: pointer;
+  border: 1px solid #9a9ea5; color:#444; font-size:15px;
+  display:inline-flex; align-items:center; justify-content:center;
+  background: linear-gradient(#fdfdfd, #dfe1e5 50%, #d3d5da 51%, #ccced3);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 1px 1px rgba(0,0,0,.2);
+}
+.iconbtn:active { box-shadow: inset 0 1px 3px rgba(0,0,0,.3); }
+
+/* inset text input */
+.input {
+  width: 100%; font-family: var(--font); font-size: 14px;
+  padding: 8px 10px; border-radius: 8px; border: 1px solid #a7abb2;
+  background: linear-gradient(#f0f0f0, #fff 12%);
+  box-shadow: inset 0 1px 3px rgba(0,0,0,.2);
+  outline: none; color: #222; -webkit-user-select: text; user-select: text;
+}
+.composer textarea, .input, .bubble, .conv-last, .messages { -webkit-user-select: text; user-select: text; }
+
+/* =====================================================================
+   PANELS / CARDS (auth, setup, modals) — glassy sheet on linen
+   ===================================================================== */
+.center { flex: 1; display: flex; align-items: center; justify-content: center; padding: 24px; }
+.card {
+  width: 340px; max-width: 100%;
+  background: linear-gradient(#fdfdfd, #eef0f3);
+  border: 1px solid #b8bcc3; border-radius: 14px;
+  box-shadow: inset 0 1px 0 #fff, 0 10px 30px rgba(0,0,0,.4);
+  padding: 22px;
+}
+.card h1 { font-size: 26px; text-align: center; color:#333; text-shadow: 0 1px 0 #fff; margin-bottom: 2px; letter-spacing: -.5px; }
+.card .tag { text-align:center; color:#8a8f97; font-size:12px; margin-bottom:18px; }
+.card label { display:block; font-size:12px; font-weight:700; color:#555; text-shadow:0 1px 0 #fff; margin:10px 0 4px; }
+.card .row { display:flex; gap:8px; margin-top:16px; }
+.card .row .btn { flex:1; text-align:center; padding:9px; }
+.card .muted { font-size:12px; color:#8a8f97; text-align:center; margin-top:14px; }
+.card .muted a, .link { color:#1e8bff; cursor:pointer; text-decoration:none; }
+.err { color:#c0392b; font-size:12px; margin-top:10px; text-align:center; min-height:14px; }
+pre.code { background:#2b2b2b; color:#9ee493; font-size:11px; border-radius:8px; padding:10px; overflow:auto; margin:8px 0; white-space:pre-wrap; -webkit-user-select:text; user-select:text; }
+
+/* modal overlay */
+.overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.45);
+  display: none; align-items: center; justify-content: center; z-index: 50; padding: 20px;
+}
+.overlay.show { display: flex; }
+
+/* image viewer */
+.lightbox {
+  position: fixed; inset: 0; z-index: 900; padding: 56px 16px 16px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.85); animation: lb-in .15s ease-out;
+}
+.lightbox img {
+  max-width: 100%; max-height: 100%; object-fit: contain;
+  border-radius: 6px; box-shadow: 0 10px 40px rgba(0,0,0,.6);
+}
+.lightbox-bar { position: absolute; top: 12px; right: 12px; display: flex; gap: 8px; }
+.lightbox-bar .btn { text-decoration: none; }
+@keyframes lb-in { from { opacity: 0; } to { opacity: 1; } }
+
+/* =====================================================================
+   CALL UI
+   ===================================================================== */
+.callstage {
+  position: fixed; inset: 0; z-index: 60; display: none;
+  background: #111; flex-direction: column;
+}
+.callstage.show { display: flex; }
+.callgrid {
+  flex: 1; display: grid; gap: 4px; padding: 4px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  align-content: center; justify-content: center;
+}
+.callgrid video {
+  width: 100%; height: 100%; min-height: 160px; max-height: 70vh;
+  object-fit: cover; background: #000; border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0,0,0,.6);
+}
+.calltile { position: relative; }
+.calltile .label {
+  position:absolute; left:8px; bottom:8px; color:#fff; font-size:12px; font-weight:700;
+  text-shadow:0 1px 3px #000; background:rgba(0,0,0,.35); padding:2px 8px; border-radius:10px;
+}
+.callbar { flex:0 0 84px; display:flex; align-items:center; justify-content:center; gap:16px;
+  background: linear-gradient(#3a3a3c, #1c1c1e); border-top:1px solid #000; }
+.callbar .cbtn {
+  min-width: 104px; height: 46px; padding: 0 22px; border-radius: 10px; cursor: pointer;
+  border: 1px solid rgba(0,0,0,.5);
+  color:#fff; font-size:14px; font-weight:700; font-family: var(--font);
+  text-shadow: 0 -1px 0 rgba(0,0,0,.4);
+  background: linear-gradient(#7a7a7e, #45454a 48%, #3a3a3e 52%, #2c2c30);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.28), 0 2px 5px rgba(0,0,0,.5);
+}
+.callbar .cbtn:active { background: linear-gradient(#2c2c30, #3a3a3e); box-shadow: inset 0 1px 4px rgba(0,0,0,.6); }
+.callbar .cbtn.active { background: linear-gradient(#ffd98a, #d89a2a 50%, #c98a1e); color:#3a2a00; text-shadow: 0 1px 0 rgba(255,255,255,.45); }
+.callbar .cbtn.hang { background: linear-gradient(#ff8080, #e62d2d 48%, #cf1f1f 52%, #b01717); border-color:#8f1212; }
+.incoming-call { text-align:center; }
+.incoming-call .big { font-size:22px; font-weight:700; margin:8px 0 2px; }
+
+/* =====================================================================
+   RESPONSIVE — collapse to single pane on phones
+   ===================================================================== */
+.backbtn { display: none; }
+@media (max-width: 720px) {
+  .sidebar { width: 100%; flex-basis: 100%; }
+  .chat { position: absolute; inset: 0; background: inherit; transform: translateX(100%); transition: transform .25s ease; }
+  .body.show-chat .chat { transform: translateX(0); }
+  .body.show-chat .sidebar { display: none; }
+  .backbtn { display: inline-flex; }
+}
+
+/* scrollbars, subtle */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,.25); border-radius: 6px; border: 2px solid transparent; background-clip: padding-box; }
+
+.hidden { display: none !important; }
